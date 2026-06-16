@@ -348,14 +348,6 @@ export default function App() {
     setActiveFilters([]);
   }
 
-  function handleAddCollection() {
-    alert("Collection management is coming in the next milestone.\n\nFor now, collections are defined by zones and tags. See /docs/architecture/information-architecture-v2.md for the planned model.");
-  }
-
-  function handleAddZone() {
-    alert("Zone management is coming in the next milestone.\n\nEdit src/data/zones.ts to add zones manually for now.");
-  }
-
   // ── Bulk import handlers ──────────────────────────────────────────────────
 
   function handleBatchCreated(batch: ImportBatch, drafts: ImportDraftItem[]) {
@@ -427,35 +419,6 @@ export default function App() {
         ? { ...b, approvedCount, rejectedCount, status: allDone ? "completed" : "ready-for-review" }
         : b
     ));
-  }
-
-  function handleImportData() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target?.result as string) as InventoryItem[];
-          if (!Array.isArray(data) || data.length === 0) {
-            alert("Invalid or empty JSON file. Expected an array of inventory items.");
-            return;
-          }
-          if (window.confirm(`Import ${data.length} items?\n\nThis will replace your current inventory (${items.length} items). Export a backup first if needed.`)) {
-            setItems(data);
-            setView("inventory");
-            setActiveFilters([]);
-          }
-        } catch {
-          alert("Failed to parse JSON. Make sure the file is a valid inventory export.");
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
   }
 
   return (
@@ -633,7 +596,7 @@ export default function App() {
 
         {/* ── DB loading state ── */}
         {dbLoading && (
-          <div style={{ textAlign: "center", padding: "80px 0", color: C.muted, fontSize: "13px" }}>
+          <div style={{ textAlign: "center", padding: "80px 0", color: C.textDim, fontSize: "13px" }}>
             Loading inventory…
           </div>
         )}

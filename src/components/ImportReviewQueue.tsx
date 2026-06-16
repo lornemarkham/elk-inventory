@@ -3,7 +3,7 @@ import type { ImportBatch, ImportDraftItem, ImportDraftStatus } from "../types/i
 import { ZONES } from "../data/zones";
 import { CONTAINERS } from "../data/containers";
 import { C, CLASS_COLORS, CLASS_LABELS, ZONE_COLORS } from "../styles";
-import type { ItemClass, ZoneId, InventoryDomain } from "../types/inventory";
+import type { ItemClass, InventoryDomain } from "../types/inventory";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 

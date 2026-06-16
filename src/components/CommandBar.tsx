@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import type { InventoryItem, Zone, Container } from "../types/inventory";
-import { C, CLASS_COLORS, CLASS_LABELS, STATE_COLORS, ZONE_COLORS } from "../styles";
+import { C, CLASS_LABELS, STATE_COLORS, ZONE_COLORS } from "../styles";
 
 interface Props {
   isOpen: boolean;

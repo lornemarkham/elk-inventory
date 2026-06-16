@@ -1,4 +1,4 @@
-import type { InventoryItem, InventoryDomain, Container } from "../types/inventory";
+import type { InventoryItem, InventoryDomain } from "../types/inventory";
 import { ZONES } from "../data/zones";
 import { COLLECTIONS } from "../data/collections";
 import { CONTAINERS } from "../data/containers";
@@ -40,7 +40,7 @@ export default function InventoryCard({ item, onClick }: Props) {
   const recZone = ZONES.find((z) => z.id === item.recommendedZone);
   const zoneMismatch = item.currentZone !== item.recommendedZone;
   const collection = item.collectionId ? COLLECTIONS.find((c) => c.id === item.collectionId) : null;
-  const container = item.containerId ? CONTAINERS.find((c) => c.id === item.containerId) : null;
+  const container = item.containerId ? (CONTAINERS.find((c) => c.id === item.containerId) ?? null) : null;
   const isFood = item.domain === "food-storage";
   const isPreserving = item.domain === "kitchen-preserving";
   const domainColor = item.domain ? (DOMAIN_COLORS[item.domain] ?? C.textDim) : classColor;
@@ -112,7 +112,7 @@ export default function InventoryCard({ item, onClick }: Props) {
 
       {/* Food/Preserving metadata block — replaces class/state/zone for these domains */}
       {(isFood || isPreserving) && (
-        <FoodMetaBadge item={item} domainColor={domainColor} container={container} />
+        <FoodMetaBadge item={item} domainColor={domainColor} />
       )}
 
       {/* Class + State — workshop/tool items */}
@@ -273,10 +273,9 @@ const FOOD_CATEGORY_CHIP_COLORS: Record<string, string> = {
   baking:     "#7a6858",
 };
 
-function FoodMetaBadge({ item, domainColor, container }: {
+function FoodMetaBadge({ item, domainColor }: {
   item: InventoryItem;
   domainColor: string;
-  container: Container | null;
 }) {
   const attrs = item.attributes ?? {};
   const isPreserving = item.domain === "kitchen-preserving";
@@ -319,7 +318,7 @@ function FoodMetaBadge({ item, domainColor, container }: {
   const foodCategory = attrs.foodCategory as string | undefined;
   const expiry = attrs.expiryDate as string | undefined;
 
-  let expiryColor = C.green;
+  let expiryColor: string = C.green;
   if (expiry) {
     const ms = new Date(expiry + "-01").getTime() - Date.now();
     const months = ms / (1000 * 60 * 60 * 24 * 30);

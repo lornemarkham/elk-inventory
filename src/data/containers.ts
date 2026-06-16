@@ -1,0 +1,81 @@
+import type { Container } from "../types/inventory";
+
+export const CONTAINERS: Container[] = [
+  {
+    id: "red-toolbox",
+    name: "Red Toolbox",
+    description: "Main mechanic toolbox. Hand tools, sockets, wrenches, and ratchets.",
+    zoneId: "mechanic-bay",
+    color: "#8B2020",
+  },
+  {
+    id: "black-electronics-tote",
+    name: "Black Electronics Tote",
+    description: "Electronics tote. Raspberry Pis, ESP32 boards, sensors, wiring materials, and small modules.",
+    zoneId: "elk-labs",
+    color: "#222",
+  },
+  {
+    id: "blue-compression-case",
+    name: "Blue Compression Tester Case",
+    description: "Hard case for the compression tester kit.",
+    zoneId: "mechanic-bay",
+    color: "#1a3a6a",
+  },
+  {
+    id: "obd-case",
+    name: "OBDLink Case",
+    description: "Small case for the OBDLink MX+ and cable.",
+    zoneId: "mechanic-bay",
+    color: "#2a2a2a",
+  },
+  {
+    id: "solar-materials-bag",
+    name: "Solar Materials Bag",
+    description: "Bag containing MC4 connectors, ferrules, cable glands, and solar wiring materials.",
+    zoneId: "elk-labs",
+    color: "#3a4a1a",
+  },
+  {
+    id: "pool-shed-shelf-a",
+    name: "Pool Shed Shelf A",
+    description: "Top shelf in the pool shed. Low-use bulky power tools.",
+    zoneId: "pool-shed",
+    color: "#3a2a18",
+  },
+  {
+    id: "ryobi-bag",
+    name: "Ryobi Tool Bag",
+    description: "Ryobi 18V tool bag with active grab-and-go tools and batteries.",
+    zoneId: "mechanic-bay",
+    color: "#1a3820",
+  },
+  {
+    id: "white-pantry-shelf",
+    name: "White Pantry Shelf",
+    description: "White wire shelving in storage room. Canned goods, soups, fruit, beans.",
+    zoneId: "storage-room-pantry",
+    color: "#c8bfae",
+  },
+  {
+    id: "wood-pantry-shelf",
+    name: "Wood Pantry Shelf",
+    description: "Wooden shelving in storage room. Dry goods, bulk staples, preserving equipment.",
+    zoneId: "storage-room-pantry",
+    color: "#8c6a32",
+  },
+  {
+    id: "chest-freezer",
+    name: "Chest Freezer",
+    description: "Chest freezer in storage room. Frozen garden produce, bulk proteins.",
+    zoneId: "storage-room-pantry",
+    color: "#3a72a0",
+  },
+  {
+    id: "kitchen-storage-shelf",
+    name: "Kitchen Storage Shelf",
+    description: "Kitchen cabinet / shelf. Vacuum sealer, appliances, active-use preserving gear.",
+    zoneId: "storage-room-pantry",
+    color: "#6a5a40",
+  },
+];

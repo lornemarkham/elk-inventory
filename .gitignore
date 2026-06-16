@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Local env — NEVER commit secrets
+.env.local
+.env.*.local
+
+# Editor
+.DS_Store
+*.local
+
+# Vite
+vite.config.ts.timestamp-*

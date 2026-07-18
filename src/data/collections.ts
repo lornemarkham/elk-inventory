@@ -43,4 +43,10 @@ export const COLLECTIONS: Collection[] = [
     description: "Standalone shop gear: vacuums, lifts, fuel cans, work lights.",
     tags: ["shop-equipment", "mechanic"],
   },
+  {
+    id: "fitness-equipment",
+    name: "Fitness Equipment",
+    description: "Garage gym: power rack, Olympic barbell and plates, dumbbells, and mobility gear.",
+    tags: ["fitness", "strength", "garage-gym"],
+  },
 ];

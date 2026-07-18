@@ -1,0 +1,4 @@
+# Belt-and-suspenders alongside .gitignore — guarantees this stays out of
+# any deploy (CLI or git-integration) regardless of git tracking state.
+# Unauthenticated, calls a cost-bearing OpenAI endpoint directly.
+public/debug-image.html

@@ -15,3 +15,13 @@ dist-ssr/
 
 # Vite
 vite.config.ts.timestamp-*
+.vercel
+.env*
+
+# Local-only debug tooling — unauthenticated, calls a cost-bearing OpenAI
+# endpoint directly. Never ship to production. See docs/knowledge/lessons-learned.md.
+public/debug-image.html
+
+# Claude Code local session config — accumulates tool-call permission history,
+# which can end up embedding request URLs/keys verbatim. Personal, not project config.
+.claude/settings.local.json

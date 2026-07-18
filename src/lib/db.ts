@@ -83,21 +83,31 @@ export async function fetchItems(): Promise<InventoryItem[]> {
   return (data as Row[]).map(rowToItem);
 }
 
-export async function createItem(item: InventoryItem): Promise<void> {
+export type WriteResult = { ok: true } | { ok: false; error: string };
+
+export async function createItem(item: InventoryItem): Promise<WriteResult> {
   const { error } = await supabase
     .from("inventory_items")
     .insert(itemToRow(item));
 
-  if (error) console.error("[ELK] createItem error:", error.message);
+  if (error) {
+    console.error("[ELK] createItem error:", error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
-export async function updateItem(item: InventoryItem): Promise<void> {
+export async function updateItem(item: InventoryItem): Promise<WriteResult> {
   const { error } = await supabase
     .from("inventory_items")
     .update(itemToRow(item))
     .eq("id", item.id);
 
-  if (error) console.error("[ELK] updateItem error:", error.message);
+  if (error) {
+    console.error("[ELK] updateItem error:", error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 export async function deleteItem(id: string): Promise<void> {

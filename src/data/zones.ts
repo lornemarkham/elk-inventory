@@ -27,9 +27,9 @@ export const ZONES: Zone[] = [
   },
   {
     id: "strength-zone",
-    name: "Strength Zone",
-    purpose: "Workout Equipment",
-    notes: "Dedicated fitness area. Keep clear of tool clutter.",
+    name: "Garage Gym / Strength Zone",
+    purpose: "Fitness Equipment, Strength Training, Mobility",
+    notes: "Dedicated garage gym area. Power rack, bench, barbell, plates, dumbbells, and mobility gear. Keep clear of tool clutter.",
     photoPath: "",
     priority: "secondary",
   },

@@ -46,11 +46,14 @@ export type LifecycleState =
 export const ALL_TAGS = [
   "automation",
   "automotive",
+  "barbell",
+  "bodyweight",
   "camera",
   "carburetor",
   "connector",
   "connectors",
   "diagnostic",
+  "dumbbells",
   "electronics",
   "elk-garden",
   "elk-wrench",
@@ -60,7 +63,9 @@ export const ALL_TAGS = [
   "esp32",
   "fabrication",
   "fasteners",
+  "fitness",
   "fuel",
+  "garage-gym",
   "hardware",
   "home-renovation",
   "ignition",
@@ -68,6 +73,7 @@ export const ALL_TAGS = [
   "learning",
   "measurement",
   "mechanic",
+  "mobility",
   "mounting",
   "motorcycle",
   "obd",
@@ -75,11 +81,13 @@ export const ALL_TAGS = [
   "pool",
   "power",
   "raspberry-pi",
+  "recovery",
   "sensor",
   "shop-equipment",
   "small-engine",
   "solar",
   "sort-required",
+  "strength",
   "temperature",
   "weatherproofing",
   "wiring",
@@ -128,6 +136,7 @@ export type BatteryPlatform =
 export type InventoryDomain =
   | "workshop"
   | "electronics"
+  | "fitness"
   | "food-storage"
   | "kitchen-preserving"
   | "garden"
@@ -170,4 +179,8 @@ export interface InventoryItem {
   // Timestamps (ISO 8601 strings — absent on legacy seed items)
   createdAt?: string;
   updatedAt?: string;
+
+  // Provenance — set when this item was approved from a Purchase Intake draft.
+  // See docs/purchase-intake-v1-spec.md and src/types/purchase.ts.
+  sourceDraftId?: string;
 }

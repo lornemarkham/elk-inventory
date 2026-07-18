@@ -33,6 +33,7 @@ If you are new to this project (or returning after a long break), read these in 
 |---|---|
 | [Life Operating System](vision/life-operating-system.md) | Long-term vision, mission, core questions, what this is not |
 | [Founder Notes — Lorne](vision/founder-notes-lorne.md) | Personal motivation, product beliefs, first-user principles |
+| [Product Brain](vision/product-brain.md) | The persistent organizational memory layer above raw inventory — why things were chosen, not just what's owned |
 | [Future Market and Tiers](vision/future-market-and-tiers.md) | Early thinking on market fit and future pricing — not current priority |
 
 ---
@@ -65,6 +66,7 @@ If you are new to this project (or returning after a long break), read these in 
 | Document | Summary |
 |---|---|
 | [Information Architecture v2](architecture/information-architecture-v2.md) | **Definitive architecture review** — 16-section analysis of collection-first vs inventory-first, recommended hierarchy, navigation, data models, goals model, purchase model, search model, dashboard, per-domain schema analysis, 7 concrete risks, 6-phase migration plan, and final recommendation |
+| [Engineering Decisions](architecture/engineering-decisions.md) | Exploration (no implementation): whether "Engineering Decision" is a new first-class object, where it belongs (Product Brain, scoped via Project), and why "Project BOM" should be a computed report, not a stored entity |
 
 > **Status:** Architecture review complete. Recommendation: migrate to collection-first before building any new features. See Phase 1–3 of migration plan.
 
@@ -77,6 +79,24 @@ If you are new to this project (or returning after a long break), read these in 
 | [ADR-0001: localStorage Before SQLite](decisions/0001-localstorage-before-sqlite.md) | Why localStorage was the right first step | Accepted |
 | ADR-0002: Electron vs. Tauri | Native app wrapper choice | Not yet written |
 | ADR-0003: SQLite Schema Design | Data model for multi-domain inventory | Not yet written |
+
+---
+
+## Knowledge Folder
+
+Running capture of ideas, observations, and lessons that come up mid-work but aren't the current
+task — see [knowledge/README.md](knowledge/README.md) for the full index and entry format.
+
+| File | For |
+|---|---|
+| [future-features.md](knowledge/future-features.md) | Product features not on the current roadmap |
+| [workflow-improvements.md](knowledge/workflow-improvements.md) | Dev workflow, tooling, process ideas |
+| [ai-prompt-ideas.md](knowledge/ai-prompt-ideas.md) | Prompt/model changes for `/api/extract` and future AI layers |
+| [product-direction.md](knowledge/product-direction.md) | Bigger-picture product/positioning thoughts |
+| [business-opportunities.md](knowledge/business-opportunities.md) | Monetization, market, non-engineering ideas |
+| [architecture-observations.md](knowledge/architecture-observations.md) | Things noticed about the current architecture, not yet acted on |
+| [lessons-learned.md](knowledge/lessons-learned.md) | Debugging discoveries, gotchas, "next time do X" notes |
+| [ux-improvements.md](knowledge/ux-improvements.md) | Interaction/UI ideas that aren't the current task |
 
 ---
 

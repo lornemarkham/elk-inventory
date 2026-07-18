@@ -86,7 +86,75 @@ CREATE POLICY "Authenticated users can update items"
 CREATE POLICY "Authenticated users can delete items"
   ON public.inventory_items FOR DELETE TO authenticated USING (true);
 
+-- ── Purchase drafts (Purchase Intake V1 — see docs/purchase-intake-v1-spec.md) ─
+-- Raw pasted-text captures land here first. Nothing here is real inventory
+-- until a human approves it (see approveDraft() in src/lib/purchaseDrafts.ts).
+CREATE TABLE IF NOT EXISTS public.purchase_drafts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Source
+  raw_text          TEXT NOT NULL,
+
+  -- Extracted / suggested fields — every one is nullable. Extraction must
+  -- never block capture (see spec §2/§7).
+  suggested_name           TEXT,
+  suggested_quantity       INTEGER,
+  suggested_brand          TEXT,
+  suggested_vendor         TEXT,
+  suggested_price          NUMERIC(10,2),
+  suggested_currency       TEXT DEFAULT 'USD',
+  suggested_purchase_date  DATE,
+  product_url              TEXT,
+  suggested_collection_id  TEXT,
+  suggested_project        TEXT,
+  suggested_model          TEXT,
+  suggested_category       TEXT,
+
+  -- Review state
+  status            TEXT NOT NULL DEFAULT 'pending',  -- 'pending' | 'approved' | 'saved-for-later' | 'rejected'
+  resolved_item_id  TEXT REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+
+  -- Audit
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW(),
+  created_by        UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+ALTER TABLE public.purchase_drafts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated users can view drafts" ON public.purchase_drafts;
+CREATE POLICY "Authenticated users can view drafts"
+  ON public.purchase_drafts FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can insert drafts" ON public.purchase_drafts;
+CREATE POLICY "Authenticated users can insert drafts"
+  ON public.purchase_drafts FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated users can update drafts" ON public.purchase_drafts;
+CREATE POLICY "Authenticated users can update drafts"
+  ON public.purchase_drafts FOR UPDATE TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can delete drafts" ON public.purchase_drafts;
+CREATE POLICY "Authenticated users can delete drafts"
+  ON public.purchase_drafts FOR DELETE TO authenticated USING (true);
+
+-- Provenance: which draft (if any) an inventory item was approved from.
+-- Soft reference only — deleting a draft never deletes the item it produced.
+ALTER TABLE public.inventory_items
+  ADD COLUMN IF NOT EXISTS source_draft_id UUID REFERENCES public.purchase_drafts(id) ON DELETE SET NULL;
+
+-- Multi-product capture (Amazon order pages, etc. — see src/lib/captureAdapters.ts)
+-- added two more best-effort suggested fields. Needed as an explicit ALTER on
+-- top of the CREATE TABLE above so this file stays safe to re-run against a
+-- database that already has purchase_drafts from before this addition.
+ALTER TABLE public.purchase_drafts
+  ADD COLUMN IF NOT EXISTS suggested_model    TEXT,
+  ADD COLUMN IF NOT EXISTS suggested_category TEXT;
+
 -- ── Done ──────────────────────────────────────────────────────────────────────
 -- After running this schema:
 --   1. Copy your Supabase project URL + anon key into .env.local
 --   2. npm run dev — the app will auto-seed items into the DB on first load
+--
+-- This file is safe to re-run in full on an existing project — every
+-- statement is idempotent (IF NOT EXISTS / DROP POLICY IF EXISTS first).

@@ -47,10 +47,10 @@ export function numbersInText(text: string): Set<string> {
   return out;
 }
 
-// Only an explicit label can make a fax a referral fax.
+// Only an explicit label can make a fax a referral fax ("referral" or "intake").
 export function classifyFax(modelKind: string | null | undefined, label: string | null | undefined): { kind: FaxKind; downgraded: boolean } {
   const l = (label ?? "").toLowerCase();
-  if (/referr/.test(l)) return { kind: "referral", downgraded: false };
+  if (/referr|intake/.test(l)) return { kind: "referral", downgraded: false };
   const claimed = modelKind === "referral";
   if (/schedul|appointment/.test(l)) return { kind: "scheduling", downgraded: claimed };
   if (/office|clinic|main/.test(l)) return { kind: "office", downgraded: claimed };
@@ -63,9 +63,14 @@ export function classifyFax(modelKind: string | null | undefined, label: string 
 // text itself says referral; a bare "fax:" in instructions stays a plain fax.
 export function referralFaxesIn(text: string): { digits: string; label: string }[] {
   const out: { digits: string; label: string }[] = [];
-  for (const m of text.matchAll(/([^.;\n]{0,60}?\bfax\b[^.;\n0-9]{0,40}?)(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/gi)) {
-    if (!/referr/i.test(m[1])) continue;
-    out.push({ digits: digitsOnly(m[2]), label: `${m[1].trim()} ${m[2]}`.trim() });
+  for (const clause of text.split(/[;\n]|\.\s/)) {
+    if (!/\bfax/i.test(clause) || !/referr|intake/i.test(clause)) continue;
+    for (const m of clause.matchAll(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g)) {
+      // Only numbers that follow the word "fax" (not the nurse line after it).
+      const before = clause.slice(0, m.index);
+      if (!/\bfax\b/i.test(before) || /\b(line|phone|call|tel)\b[^0-9]*$/i.test(before)) continue;
+      out.push({ digits: digitsOnly(m[0]), label: clause.trim().slice(0, 160) });
+    }
   }
   return out;
 }

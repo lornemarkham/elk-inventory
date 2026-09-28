@@ -403,6 +403,7 @@ test("fax number inside referral instructions becomes a referral fax (and only t
   const { referralFaxesIn } = await import("../api/_npi-referral.ts");
   assert.deepEqual(referralFaxesIn("New Appointment Request Form; Fax referral to 206-985-3121 Attn: Clinical Intake").map((x) => x.digits), ["2069853121"]);
   assert.deepEqual(referralFaxesIn("Call to schedule. Fax: 206-555-0000."), []);
+  assert.deepEqual(referralFaxesIn("Use EpicCare Link or fax New Appointment Request Form (NARF) to 206-985-3121 or toll-free 866-985-3121, Attn: Clinical Intake nurse line at 206-987-2000").map((x) => x.digits), ["2069853121", "8669853121"]);
   const parsed = emptyParsed();
   parsed.sources = [meta("S1", "first_party")];
   parsed.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], faxes: [{ number: "206-985-3392", label: "Fax", faxKind: "general", sourceIds: ["S1"] }], referralInstructions: { text: "Fax referrals to 206-985-3121, Attn: Clinical Intake", sourceIds: ["S1"] } })];

@@ -14,8 +14,9 @@ import {
   DEMO_CLINIC, SAMPLE_ATTACHMENTS, SCENARIOS, ageFrom, applyStep, createTransaction, draftReferral, faxPlan, pageCount, parseRecord, searchOrigin, simulateInbound, webhookFor,
   type Attachment, type Destination, type FaxOutcome, type FaxTransaction, type FaxWebhook, type InboundFax, type ReferralDraft, type Scenario, type ScenarioId,
 } from "./model";
-import { REFERRAL_TYPES, intentKey } from "./routing";
-import { CONTROLLED, controlledDestination, controlledFit, isControlled } from "./controlled";
+import { REFERRAL_TYPES } from "./routing";
+import { CONTROLLED, controlledDestination, isControlled } from "./controlled";
+import ControlledCard from "./ControlledCard";
 import { applySend, applyStatus, canSendLive, liveDone, liveFaxConfig, liveFaxStatus, newLiveFax, operationalEvidence, sendLiveFax, type LiveFax } from "./live";
 import "./demo.css";
 
@@ -847,38 +848,6 @@ function InboundCard({ f }: { f: InboundFax }) {
       </dl>
       <div className="pi-muted rd-fine">Entirely simulated — no fax was received and no model read anything. This shows what an inbound AI step could feel like.</div>
     </div>
-  );
-}
-
-// ── Controlled test destination (synthetic, outside the search) ─────────────
-
-function ControlledCard({ requested, onChoose }: { requested: string; onChoose: () => void }) {
-  const fit = controlledFit(intentKey(requested));
-  return (
-    <aside className="rd-controlled" aria-label="Controlled test destination">
-      <div className="rd-controlled-kicker">Controlled test destination · not part of the search</div>
-      <div className="rd-controlled-labels">{CONTROLLED.labels.map((l) => <span key={l}>{l}</span>)}</div>
-      <div className="rd-controlled-body">
-        <div>
-          <div className="rd-controlled-name">{CONTROLLED.name}</div>
-          <div className="pi-muted">{CONTROLLED.role}</div>
-          <ul>
-            <li>Not part of search ranking or counts</li>
-            <li>Not geographically matched · no address</li>
-            <li>Not a real provider record · no NPI · no licence</li>
-          </ul>
-        </div>
-        <div>
-          <div className="rd-controlled-fax">
-            <div className="pi-fax-kind"><Icon name="fax" size={13} /> Referral fax — controlled test</div>
-            <div className="pi-fax-num pi-mono">{CONTROLLED.fax}</div>
-            <div className="pi-fax-sem">Purpose: controlled fax-integration testing.</div>
-          </div>
-          <div className={`rd-controlled-fit ${fit.matches ? "rd-match" : "rd-nomatch"}`}>{fit.text}</div>
-        </div>
-        <button className="pi-btn pi-btn-primary" onClick={onChoose}>Choose test destination <Icon name="chevron" /></button>
-      </div>
-    </aside>
   );
 }
 

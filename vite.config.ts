@@ -14,7 +14,7 @@ function npiDevApi(): Plugin {
       for (const [k, v] of Object.entries(loadEnv(server.config.mode, server.config.root, ['SRFAX_', 'OPENAI_', 'NPI_', 'BRAVE_']))) process.env[k] ??= v
       server.middlewares.use(async (req, res, next) => {
         // Mirror vercel.json's /npi-list rewrite.
-        if (req.url && /^\/npi-list(\/(referral-demo|opportunity|fax-settings))?\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list(\/(referral-demo|opportunity|fax-settings))?\/?/, '/npi-list/index.html')
+        if (req.url && /^\/npi-list(\/(referral-demo|opportunity|fax-settings|pms|embed\/provider-intelligence))?\/?(\?|#|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list(\/(referral-demo|opportunity|fax-settings|pms|embed\/provider-intelligence))?\/?/, '/npi-list/index.html')
         const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research|fax|discover))(\?.*)?$/)
         if (!m) return next()
         try {

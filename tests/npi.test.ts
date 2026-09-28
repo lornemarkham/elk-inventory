@@ -450,3 +450,13 @@ test("referral-fax claims are checked against the live source page", async () =>
   const view = await withFetch(() => null, () => buildView(provider(), r2, { origin: null, radiusMi: null, specialty: null, license: null }));
   assert.ok(view.locations[0].referral.items.some((i) => i.points === 5 && i.label.includes("couldn't be machine-checked")));
 });
+
+test("'different specialty' verdict only stands without taxonomy overlap", async () => {
+  const { specialtyReallyDiffers } = await import("../api/_npi-referral.ts");
+  assert.equal(specialtyReallyDiffers("Pediatric Otolaryngology", ["Otolaryngology"]), false);
+  assert.equal(specialtyReallyDiffers("Facial Plastic Surgery", ["Otolaryngology, Facial Plastic Surgery"]), false);
+  assert.equal(specialtyReallyDiffers("ENT", ["Otolaryngology"]), false);
+  assert.equal(specialtyReallyDiffers("Aesthetic medicine and weight loss", ["Otolaryngology"]), true);
+  assert.equal(specialtyReallyDiffers("Audiology", ["Otolaryngology, Otolaryngology/Facial Plastic Surgery"]), true);
+  assert.equal(specialtyReallyDiffers("Audiologist", ["Audiologist"]), false);
+});

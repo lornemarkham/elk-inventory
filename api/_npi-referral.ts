@@ -120,6 +120,21 @@ export async function checkReferralLabels(locations: PracticeLocation[], sources
   })));
 }
 
+// Deterministic guard on the model's "different specialty" verdict: it only
+// stands when the stated specialty shares no significant word stem with any
+// NPI taxonomy ("Pediatric Otolaryngology" vs "Otolaryngology" is the same field).
+const GENERIC = new Set(["surgery", "medicine", "general", "clinic", "services", "specialist", "physician", "doctor", "care"]);
+function stems(s: string): Set<string> {
+  const t = s.toLowerCase().replace(/\bent\b|ear,? nose,? (and|&) throat|head (and|&) neck/g, " otolaryngology ");
+  return new Set(t.split(/[^a-z]+/).filter((w) => w.length >= 5 && !GENERIC.has(w)).map((w) => w.slice(0, 6)));
+}
+export function specialtyReallyDiffers(stated: string | null, taxonomies: string[]): boolean {
+  if (!stated) return false;
+  const a = stems(stated);
+  const b = stems(taxonomies.join(" "));
+  return a.size > 0 && ![...a].some((x) => b.has(x));
+}
+
 // ── Addresses ────────────────────────────────────────────────────────────────
 
 const DIRS = new Set(["N", "S", "E", "W", "NE", "NW", "SE", "SW", "NORTH", "SOUTH", "EAST", "WEST"]);
@@ -591,6 +606,11 @@ export async function finalizeResearch(
   const relIds = keep(p.relationship?.sourceIds, "relationship");
   const kind: NpiRelationship = p.relationship?.kind ?? "no_evidence";
 
+  let specialtyStatus: "same" | "different" | "unknown" = specialtyIds.length && countingFamilies(fams(specialtyIds)).length ? (p.specialty?.status ?? "unknown") : "unknown";
+  if (specialtyStatus === "different" && !specialtyReallyDiffers(p.specialty?.value ?? null, provider.taxonomies.map((t) => t.desc))) {
+    specialtyStatus = "same";
+    dropped.push({ reason: "Model said the specialty differs, but it overlaps the NPI taxonomy — treated as the same specialty", detail: String(p.specialty?.value) });
+  }
   const identityConfirmed = Boolean(p.identity?.confirmed) && countingFamilies(fams(identityIds)).length > 0;
   return {
     npi: provider.npi,
@@ -598,7 +618,7 @@ export async function finalizeResearch(
     summary: p.summary ?? "",
     relationship: { kind: relIds.length || kind === "no_evidence" ? kind : "no_evidence", explanation: p.relationship?.explanation ?? "", sourceIds: relIds },
     identity: { ...fieldFrom(identityConfirmed ? provider.name : null, identityIds, sources, { conflict: Boolean(p.identity?.conflict) }), confirmed: identityConfirmed, conflict: Boolean(p.identity?.conflict) && identityIds.length > 0 },
-    specialty: { ...fieldFrom(specialtyIds.length ? p.specialty?.value ?? null : null, specialtyIds, sources), status: specialtyIds.length && countingFamilies(fams(specialtyIds)).length ? (p.specialty?.status ?? "unknown") : "unknown" },
+    specialty: { ...fieldFrom(specialtyIds.length ? p.specialty?.value ?? null : null, specialtyIds, sources), status: specialtyStatus },
     affiliations,
     organization: fieldFrom(currentAff?.value ?? null, currentAff?.sourceIds ?? [], sources),
     locations,

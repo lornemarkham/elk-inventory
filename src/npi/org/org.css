@@ -169,6 +169,8 @@
 .og-history table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .og-history th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 8px; white-space: nowrap; }
 .og-history td { border-bottom: 1px solid var(--line-soft); padding: 7px 8px; vertical-align: top; }
+.og-history td:first-child, .og-history td.og-mono:not(.og-small) { white-space: nowrap; }
+.og-history td.og-small { min-width: 160px; }
 .og-tag-sim, .og-tag-real { margin-left: 6px; font: 700 10px/1.6 ui-monospace, monospace; border-radius: 3px; padding: 0 4px; text-transform: uppercase; }
 .og-tag-sim { color: #9a3412; background: #fff7ed; }
 .og-tag-real { color: var(--good); background: var(--good-soft); }

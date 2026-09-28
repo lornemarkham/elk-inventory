@@ -1,33 +1,31 @@
 // ── /npi-list/referral-demo — fake outbound referral workflow (SYNTHETIC POC) ──
 // A personal proof of concept. Patient, clinical text, attachments, fax
-// transport, webhook and inbound response are all fictional. The specialist
-// search is the real provider-intelligence search from /npi-list. Nothing is
-// ever sent to a provider. State lives in this browser session only.
+// transport, webhook and inbound response are all fictional. The audiologist
+// supplies the referral type; the specialist search is the real deterministic
+// provider search from /npi-list, plus saved/fresh web research. A separate,
+// clearly synthetic controlled destination (./controlled.ts) is offered for
+// fax-integration testing. Nothing is ever sent. State lives in this browser session only.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../ui";
+import { TERMS, faxSemantics } from "../semantics";
 import Specialists from "./Specialists";
 import { Audiogram, DocPreview } from "./Documents";
 import {
   DEMO_CLINIC, SAMPLE_ATTACHMENTS, SCENARIOS, ageFrom, applyStep, createTransaction, draftReferral, faxPlan, pageCount, parseRecord, searchOrigin, simulateInbound, webhookFor,
   type Attachment, type Destination, type FaxOutcome, type FaxTransaction, type FaxWebhook, type InboundFax, type ReferralDraft, type Scenario, type ScenarioId,
 } from "./model";
+import { REFERRAL_TYPES, intentKey } from "./routing";
+import { CONTROLLED, controlledDestination, controlledFit, isControlled } from "./controlled";
 import "./demo.css";
 
 type Step = "patient" | "intent" | "search" | "prepare" | "review" | "send" | "timeline";
 
 const STEPPER: { label: string; steps: Step[] }[] = [
   { label: "Patient", steps: ["patient", "intent"] },
-  { label: "Specialist", steps: ["search"] },
+  { label: "Destination", steps: ["search"] },
   { label: "Referral", steps: ["prepare"] },
   { label: "Review", steps: ["review"] },
   { label: "Sent", steps: ["send", "timeline"] },
-];
-
-const SPECIALTY_CHOICES = [
-  { value: "ENT / Otolaryngology", note: "Polished demo path · saved research for Seattle" },
-  { value: "Otology & Neurotology", note: "Live search" },
-  { value: "Neurology", note: "Live search" },
-  { value: "Allergy & Immunology", note: "Live search" },
 ];
 
 interface State {
@@ -35,7 +33,7 @@ interface State {
   scenarioId: ScenarioId;
   record: string;
   attachments: Attachment[]; // available (sample + local uploads)
-  specialty: string;
+  specialty: string; // referral type chosen by the audiologist — drives the search
   location: string;
   radius: number;
   found: number | null;
@@ -51,14 +49,14 @@ interface State {
   times: Partial<Record<"started" | "searched" | "selected" | "prepared" | "reviewed", string>>;
 }
 
-const KEY = "npi-referral-demo:v1";
+const KEY = "npi-referral-demo:v2";
 const LOG = "npi-referral-demo:fax-log";
 
 function fresh(id: ScenarioId = "A"): State {
   const s = SCENARIOS.find((x) => x.id === id)!;
   return {
     step: "patient", scenarioId: id, record: s.record, attachments: s.attachments.map((a) => SAMPLE_ATTACHMENTS[a]),
-    specialty: s.specialty, location: searchOrigin(parseRecord(s.record).location), radius: 10, found: null,
+    specialty: s.referralType, location: searchOrigin(parseRecord(s.record).location), radius: 10, found: null,
     destination: null, draft: null, reviewed: false, outcome: "deliver", tx: null, webhook: null, failed: [], flagged: [], inbound: null,
     times: { started: new Date().toISOString() },
   };
@@ -99,7 +97,7 @@ export default function ReferralDemo() {
       <header className="rd-top">
         <a className="pi-brand" href="/npi-list/referral-demo" onClick={(e) => { e.preventDefault(); if (sent) setSt(fresh()); else go("patient"); }}>
           <span className="pi-logo rd-logo"><Icon name="fax" /></span>
-          <span>AI Referral Workflow</span>
+          <span>Outbound Referral Workflow</span>
         </a>
         <span className="rd-poc">Synthetic POC</span>
         <nav className="rd-stepper" aria-label="Progress">
@@ -125,7 +123,7 @@ export default function ReferralDemo() {
           <PatientStep
             st={st}
             scenario={scenario}
-            onScenario={(id) => set({ ...fresh(id), times: st.times })}
+            onScenario={(id) => id !== st.scenarioId && set({ ...fresh(id), times: st.times })}
             onRecord={(record) => set({ record })}
             onAttachments={(attachments) => set({ attachments })}
             onNext={() => go("intent", { location: searchOrigin(patient.location) })}
@@ -136,7 +134,9 @@ export default function ReferralDemo() {
         )}
         {st.step === "search" && (
           <section>
-            <StepHead kicker="Step 3 · Find a specialist" title={`Where should ${patient.name || "this patient"}'s referral go?`} sub="Real specialists near the patient's area, ranked by how well the evidence supports sending a referral fax there." onBack={() => go("intent")} />
+            <StepHead kicker="Step 3 · Find a destination" title={`Where can ${patient.name || "this patient"}'s ${st.specialty.split(" / ")[0]} referral go?`} sub="The audiologist chose the referral type. This step only finds real destinations for it: registry matches by taxonomy and distance, then evidence about where and how to send." onBack={() => go("intent")} />
+            <div className="rd-requested"><Icon name="stethoscope" size={14} /> Requested referral type: {st.specialty} · selected by the audiologist</div>
+            <ControlledCard requested={st.specialty} onChoose={() => go("prepare", { destination: controlledDestination(), draft: draftReferral(patient, scenario, controlledDestination()), reviewed: false, times: { ...st.times, selected: now() } })} />
             <Specialists
               specialty={st.specialty}
               location={st.location}
@@ -169,13 +169,13 @@ export default function ReferralDemo() {
               const tx = createTransaction({ patient, destination: st.destination!, pages: st.tx!.pages, outcome: "deliver" });
               set((s) => ({ failed: [...s.failed, s.tx!], tx, webhook: null }));
             }}
-            onAlternate={() => go("search", { failed: [...st.failed, st.tx!], tx: null, webhook: null, flagged: [...st.flagged, `${st.destination!.npi}|${st.destination!.fax.replace(/\D/g, "")}`] })}
+            onAlternate={() => go("search", { failed: [...st.failed, st.tx!], tx: null, webhook: null, flagged: [...st.flagged, `${st.destination!.npi ?? CONTROLLED.id}|${st.destination!.fax.replace(/\D/g, "")}`] })}
             onTimeline={() => go("timeline")}
           />
         )}
         {st.step === "timeline" && st.tx && (
           <TimelineStep st={st} patient={patient} scenario={scenario}
-            onRespond={() => set({ inbound: simulateInbound(st.tx!, scenario) })}
+            onRespond={() => set({ inbound: simulateInbound(st.tx!, scenario, new Date(), st.specialty) })}
             onRestart={() => { setSt(fresh()); window.scrollTo({ top: 0 }); }}
           />
         )}
@@ -212,7 +212,7 @@ function PatientStep({ st, scenario, onScenario, onRecord, onAttachments, onNext
 
   return (
     <section>
-      <StepHead kicker="Step 1 · Patient" title="Who are we referring?" sub="The audiology assessment is done and a specialist referral is recommended. Pick a fictional patient to begin." />
+      <StepHead kicker="Step 1 · Patient" title="Who are we referring?" sub="The audiologist has finished the assessment and already decided to refer, and to what kind of specialist. Pick a fictional patient to begin." />
       <div className="rd-scenarios">
         {SCENARIOS.map((s) => (
           <button key={s.id} className={`rd-scn ${s.id === st.scenarioId ? "rd-scn-on" : ""}`} onClick={() => { onScenario(s.id); setEditing(s.id === "E"); }}>
@@ -233,6 +233,7 @@ function PatientStep({ st, scenario, onScenario, onRecord, onAttachments, onNext
               <div>
                 <div className="rd-pt-name">{patient.name || "Unnamed synthetic patient"} <span className="rd-synth-tag">Synthetic</span></div>
                 <div className="pi-muted">DOB {patient.dob || "—"} · {patient.location || "—"} · {patient.insurance || "—"}</div>
+                <div className="rd-reftype">Referral type selected by the audiologist: <strong>{st.specialty}</strong></div>
               </div>
             </div>
             <button className="pi-btn" onClick={() => setEditing(!editing)}>{editing ? "Done" : "Edit record"}</button>
@@ -296,9 +297,10 @@ function PatientStep({ st, scenario, onScenario, onRecord, onAttachments, onNext
 function IntentStep({ st, scenario, patientName, set, onBack, onNext }: { st: State; scenario: Scenario; patientName: string; set: (p: Partial<State>) => void; onBack: () => void; onNext: () => void }) {
   return (
     <section className="rd-narrow">
-      <StepHead kicker="Step 2 · Referral intent" title="What kind of specialist are you referring to?" sub={`${patientName} · ${scenario.title}${scenario.priority === "Urgent" ? " · Urgent" : ""}`} onBack={onBack} />
+      <StepHead kicker="Step 2 · Referral intent" title="Referral type" sub={`${patientName} · ${scenario.title}${scenario.priority === "Urgent" ? " · Urgent" : ""}`} onBack={onBack} />
+      <p className="rd-intent-note"><strong>The audiologist supplies this.</strong> It is the clinical decision, already made. The software does not infer it from the notes; it only finds where a referral of this type can legitimately and practically be sent.</p>
       <div className="rd-specs">
-        {SPECIALTY_CHOICES.map((c) => (
+        {REFERRAL_TYPES.map((c) => (
           <button key={c.value} className={`rd-spec ${st.specialty === c.value ? "rd-spec-on" : ""}`} onClick={() => set({ specialty: c.value })}>
             <span className="rd-spec-radio" />
             <span><strong>{c.value}</strong><span className="pi-muted">{c.note}</span></span>
@@ -319,12 +321,12 @@ function IntentStep({ st, scenario, patientName, set, onBack, onNext }: { st: St
         </div>
       </div>
       <div className="rd-boundary">
-        <div><span className="rd-pill-fake">Fictional</span> the patient and why they're being referred</div>
+        <div><span className="rd-pill-fake">Fictional</span> the patient and the audiologist's referral decision</div>
         <Icon name="chevron" />
         <div><span className="rd-pill-real">Real</span> the specialist search that comes next</div>
       </div>
       <div className="rd-cta">
-        <button className="pi-btn pi-btn-primary pi-btn-lg" disabled={!st.location.trim()} onClick={onNext}><Icon name="search" /> Find {st.specialty.split(" / ")[0]} specialists</button>
+        <button className="pi-btn pi-btn-primary pi-btn-lg" disabled={!st.location.trim()} onClick={onNext}><Icon name="search" /> Find {st.specialty.split(" / ")[0]} destinations</button>
       </div>
     </section>
   );
@@ -360,8 +362,8 @@ function PrepareStep({ st, patient, scenario, set, onBack, onNext }: { st: State
               <div>DOB {patient.dob}</div>
               <div>{patient.insurance}{patient.memberId && ` · ${patient.memberId}`}</div>
             </div>
-            <div className="rd-doc-block">
-              <span>Referred to <em className="rd-real-tag">Real destination</em></span>
+            <div className={`rd-doc-block ${isControlled(d) ? "rd-synthetic-dest" : ""}`}>
+              <span>Referred to {isControlled(d) ? <em className="rd-synth-provider-tag">SYNTHETIC TEST PROVIDER</em> : <em className="rd-real-tag">Real destination</em>}</span>
               <strong>{d.provider}</strong>
               <div>{d.specialty}</div>
               <div>{d.practice}</div>
@@ -401,23 +403,30 @@ function PrepareStep({ st, patient, scenario, set, onBack, onNext }: { st: State
 }
 
 function DestinationSummary({ d }: { d: Destination }) {
+  const sem = d.kind === "controlled" ? null : faxSemantics({ number: d.fax, digits: "", label: d.faxLabel, faxKind: d.faxKind, labelCheck: d.faxChecked ? "page" : undefined, sourceIds: [], families: [], inNpi: false, confidence: 0 });
   return (
-    <div className="rd-card rd-dest">
+    <div className={`rd-card rd-dest ${isControlled(d) ? "rd-synthetic-dest" : ""}`}>
       <div className="rd-card-label">Destination</div>
+      {isControlled(d) && <div className="rd-controlled-labels">{CONTROLLED.labels.map((l) => <span key={l}>{l}</span>)}</div>}
       <div className="rd-dest-fax">
-        <span>{d.faxKind === "referral" ? "Referral fax" : "Fax"}</span>
+        <span>{isControlled(d) ? "Referral fax — controlled test" : sem!.title}</span>
         <strong className="pi-mono">{d.fax}</strong>
       </div>
-      <div className="rd-dest-row"><span>Referral confidence</span><strong className={`rd-tone-${d.referralScore >= 80 ? "good" : d.referralScore >= 60 ? "ok" : "low"}`}>{d.referralScore}%</strong></div>
-      <div className="rd-dest-row"><span>Provider confidence</span><strong>{d.providerScore}%</strong></div>
+      {d.referralScore !== null && <div className="rd-dest-row"><span>{TERMS.destination.label}</span><strong className={`rd-tone-${d.referralScore >= 80 ? "good" : d.referralScore >= 60 ? "ok" : "low"}`}>{d.referralScore}%</strong></div>}
+      {d.providerScore !== null && <div className="rd-dest-row"><span>{TERMS.verification.label}</span><strong>{d.providerScore}%</strong></div>}
       {d.distanceMi !== null && <div className="rd-dest-row"><span>Distance</span><strong>{d.distanceMi} mi</strong></div>}
       {d.phone && <div className="rd-dest-row"><span>Phone</span><strong className="pi-mono">{d.phone}</strong></div>}
       <div className={`rd-dest-note ${d.faxChecked ? "rd-good" : "rd-caution"}`}>
         <Icon name={d.faxChecked ? "check" : "alert"} size={13} />
-        {d.faxChecked
-          ? <>Labelled as a referral fax on {d.faxSources[0]?.domain ?? "the source page"}, and the wording was checked on the live page.</>
-          : <>This is the location's fax, but no source says it's the referral intake fax. In real use you'd call to confirm.</>}
+        {isControlled(d)
+          ? <>Controlled fax supplied by the POC owner for integration testing. Not a real clinician, not from any registry, and not scored.</>
+          : d.faxChecked
+            ? <>Referral fax: labelled as referral intake on {d.faxSources[0]?.domain ?? "the source page"}, and the wording was checked on the live page.</>
+            : <>{sem!.detail} In real use you'd call to confirm.</>}
       </div>
+      {d.reviewReasons.length > 0 && (
+        <div className="rd-dest-note rd-caution"><Icon name="alert" size={13} /> Chosen from Needs review: {d.reviewReasons.join("; ")}.</div>
+      )}
     </div>
   );
 }
@@ -432,8 +441,12 @@ function ReviewStep({ st, patient, set, onBack, onSend }: { st: State; patient: 
   const rows: { ok: boolean | "warn"; label: string; value: string }[] = [
     { ok: Boolean(patient.name && patient.dob), label: "Patient", value: `${patient.name} · DOB ${patient.dob}` },
     { ok: Boolean(draft.reason.trim()), label: "Referral reason", value: draft.reason },
-    { ok: true, label: "Destination", value: `${d.provider} · ${d.practice}` },
-    { ok: d.faxChecked ? true : "warn", label: d.faxKind === "referral" ? "Referral fax" : "Fax", value: `${d.fax}${d.faxChecked ? " · referral label checked on source page" : " · not confirmed as the referral intake fax"}` },
+    isControlled(d)
+      ? { ok: "warn", label: "Destination", value: `${d.provider} · SYNTHETIC TEST PROVIDER — not a real clinician` }
+      : { ok: d.reviewReasons.length ? "warn" : true, label: "Destination", value: `${d.provider} · ${d.practice}${d.reviewReasons.length ? ` · needs review: ${d.reviewReasons.join("; ")}` : ""}` },
+    isControlled(d)
+      ? { ok: "warn", label: "Controlled test fax", value: `${d.fax} · controlled POC destination` }
+      : { ok: d.faxChecked ? true : "warn", label: d.faxChecked ? "Referral fax" : "Office fax", value: `${d.fax}${d.faxChecked ? " · referral use confirmed by source" : " · referral use not confirmed"}` },
     { ok: has("audiogram") ? true : "warn", label: "Audiogram attached", value: has("audiogram") ? "audiogram.pdf" : "Not attached" },
     { ok: has("report") ? true : "warn", label: "Audiology report attached", value: has("report") ? "audiology-report.pdf" : "Not attached" },
     { ok: has("insurance") ? true : "warn", label: "Insurance attached", value: has("insurance") ? "insurance-card.pdf" : "Not attached" },
@@ -608,9 +621,11 @@ function TimelineStep({ st, patient, scenario, onRespond, onRestart }: { st: Sta
   const attLabels = st.attachments.filter((a) => draft.attachmentIds.includes(a.id)).map((a) => a.label.replace(" information", ""));
   const inbound = st.inbound;
   const items: { at?: string | null; title: string; detail: React.ReactNode; tone?: "bad" | "sim" | "real" | "ai" }[] = [
-    { at: st.times.started, title: "Audiology assessment", detail: `${scenario.title} · referral recommended` },
-    { at: st.times.searched, title: "Specialist search", detail: `${st.found ?? "—"} ${st.specialty.split(" / ")[0]} destinations found within ${st.radius} miles`, tone: "real" },
-    { at: st.times.selected, title: "Destination selected", detail: `${d.provider} — ${d.practice} · referral confidence ${d.referralScore}%`, tone: "real" },
+    { at: st.times.started, title: "Audiology assessment", detail: `${scenario.title} · audiologist decided to refer` },
+    { at: st.times.searched, title: "Destination search", detail: `${st.specialty} requested by the audiologist · ${st.found ?? "—"} registry matches within ${st.radius} miles`, tone: "real" },
+    isControlled(d)
+      ? { at: st.times.selected, title: "Controlled test destination selected", detail: `${d.provider} — synthetic test provider · ${d.fax}`, tone: "sim" as const }
+      : { at: st.times.selected, title: "Destination selected", detail: `${d.provider} — ${d.practice} · destination confidence ${d.referralScore}%`, tone: "real" as const },
     { at: st.times.prepared, title: "Referral prepared", detail: attLabels.length ? `${attLabels.join(" + ")} attached` : "No attachments" },
     { at: st.times.reviewed, title: "Human reviewed", detail: "Referral approved by the audiologist" },
     ...st.failed.map((f) => ({ at: f.completedAt, title: "Fax failed", detail: `${f.id} · ${f.destination.practice} · no answer`, tone: "bad" as const })),
@@ -684,6 +699,38 @@ function InboundCard({ f }: { f: InboundFax }) {
   );
 }
 
+// ── Controlled test destination (synthetic, outside the search) ─────────────
+
+function ControlledCard({ requested, onChoose }: { requested: string; onChoose: () => void }) {
+  const fit = controlledFit(intentKey(requested));
+  return (
+    <aside className="rd-controlled" aria-label="Controlled test destination">
+      <div className="rd-controlled-kicker">Controlled test destination · not part of the search</div>
+      <div className="rd-controlled-labels">{CONTROLLED.labels.map((l) => <span key={l}>{l}</span>)}</div>
+      <div className="rd-controlled-body">
+        <div>
+          <div className="rd-controlled-name">{CONTROLLED.name}</div>
+          <div className="pi-muted">{CONTROLLED.role}</div>
+          <ul>
+            <li>Not part of search ranking or counts</li>
+            <li>Not geographically matched · no address</li>
+            <li>Not a real provider record · no NPI · no licence</li>
+          </ul>
+        </div>
+        <div>
+          <div className="rd-controlled-fax">
+            <div className="pi-fax-kind"><Icon name="fax" size={13} /> Referral fax — controlled test</div>
+            <div className="pi-fax-num pi-mono">{CONTROLLED.fax}</div>
+            <div className="pi-fax-sem">Purpose: controlled fax-integration testing.</div>
+          </div>
+          <div className={`rd-controlled-fit ${fit.matches ? "rd-match" : "rd-nomatch"}`}>{fit.text}</div>
+        </div>
+        <button className="pi-btn pi-btn-primary" onClick={onChoose}>Choose test destination <Icon name="chevron" /></button>
+      </div>
+    </aside>
+  );
+}
+
 // ── About this POC ──────────────────────────────────────────────────────────
 
 function About({ onClose }: { onClose: () => void }) {
@@ -695,14 +742,15 @@ function About({ onClose }: { onClose: () => void }) {
         <div className="rd-about-cols">
           <div className="rd-about-fake">
             <h3><span className="rd-pill-fake">Synthetic</span></h3>
-            <ul><li>Patients and clinical information</li><li>Attachments</li><li>Referral letter (template draft)</li><li>Fax transport and delivery</li><li>Fax-provider webhook</li><li>Inbound response and its AI reading</li></ul>
+            <ul><li>Patients and clinical information</li><li>The audiologist's referral decision</li><li>The controlled test destination (Lorne Markham, MD — not a real clinician)</li><li>Attachments</li><li>Referral letter (template draft)</li><li>Fax transport and delivery</li><li>Fax-provider webhook</li><li>Inbound response and its AI reading</li></ul>
           </div>
           <div className="rd-about-real">
             <h3><span className="rd-pill-real">Live</span></h3>
-            <ul><li>Specialist discovery by distance (CMS NPI Registry)</li><li>NPI identity and specialty</li><li>Washington licence check</li><li>Practice-location research from public web sources</li><li>Location-specific phone and fax, with evidence</li><li>Confidence scores and their explanations</li></ul>
+            <ul><li>Deterministic discovery for the requested referral type: NPI taxonomy, state, distance (CMS NPI Registry)</li><li>NPI identity and specialty</li><li>Washington licence check</li><li>Practice-location research from public web sources</li><li>Location-specific phone and fax, with evidence</li><li>{TERMS.verification.label}, {TERMS.destination.label.toLowerCase()} and {TERMS.fit.label.toLowerCase()}, with explanations</li></ul>
           </div>
         </div>
-        <p className="pi-muted">Seattle ENT destinations show web research saved from a real run on Sep 28, 2026, re-scored live for this search. Fresh research for other providers uses paid AI calls and needs the demo key.</p>
+        <p>The audiologist supplies the referral type. Deterministic code finds candidates and applies hard checks; AI web research only adds evidence (current location, fax labels, specialty reconciliation); plain rules sort destinations into Recommended and Needs review; the human chooses.</p>
+        <p className="pi-muted">Seattle ENT destinations show web research saved from a real run on Sep 28, 2026, re-scored live for this search. That saved research is only used for ENT-family searches. Fresh research for other providers uses paid AI calls and needs the demo key.</p>
         <a href="/npi-list/opportunity">Why explore this? →</a>
       </div>
     </div>

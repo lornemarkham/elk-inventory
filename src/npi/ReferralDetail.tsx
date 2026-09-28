@@ -7,7 +7,8 @@ import { fetchView, getDemoKey, setDemoKey, type SearchContext } from "./api";
 import type { EvidenceSource, FieldConfidence, LicenseCheck, NpiRelationship, PracticeLocation, ProviderDetail, ReferralResearch, ReferralView } from "./types";
 import { Empty } from "./NpiApp";
 import { hydrateCached, isRunning, startResearch, useResearch, type ResearchState } from "./research";
-import { Breakdown, Checks, Collapse, FAMILY_LABEL, FAX_KIND_LABEL, FaxBlock, Icon, ScorePill, SourceChips, destinationChecks, formatDate, initials, timeAgo, tone } from "./ui";
+import { TERMS, specialtyConflict } from "./semantics";
+import { Breakdown, Checks, Collapse, ConflictCard, FAMILY_LABEL, FAX_KIND_LABEL, FaxBlock, Icon, ScorePill, SourceChips, destinationChecks, formatDate, initials, timeAgo, tone } from "./ui";
 
 export default function ReferralDetail({ npi, ctx, onBack }: { npi: string; ctx: SearchContext | null; onBack: (() => void) | null }) {
   const [base, setBase] = useState<ReferralView | null>(null);
@@ -193,7 +194,8 @@ function LocationCard({ loc, view, rank }: { loc: PracticeLocation; view: Referr
   const sources = research?.sources ?? [];
   const checks = destinationChecks({
     active: view.provider.status === "Active", loc, license: view.license, researched: Boolean(research),
-    specialtyCorroborated: Boolean(research?.specialty.value), specialtyDifferent: research?.specialty.status === "different", isOrg: view.provider.enumerationType === "Organization",
+    specialtyCorroborated: Boolean(research?.specialty.value), specialtyDifferent: research?.specialty.status === "different",
+    npiSpecialty: view.fields.specialty.value, currentSpecialty: research?.specialty.value, isOrg: view.provider.enumerationType === "Organization",
   });
   const confirmedBy = loc.sourceIds.map((id) => sources.find((s) => s.id === id)).filter((s): s is EvidenceSource => Boolean(s) && s!.family !== "aggregator");
   const fax = loc.bestFax;
@@ -241,7 +243,7 @@ function LocationCard({ loc, view, rank }: { loc: PracticeLocation; view: Referr
       {loc.acceptingNewPatients && <div className="pi-loc-extra"><strong>{loc.acceptingNewPatients.accepting ? "Accepting new patients" : "Not accepting new patients"}:</strong> {loc.acceptingNewPatients.value} <SourceChips ids={loc.acceptingNewPatients.sourceIds} sources={sources} /></div>}
 
       <div className="pi-loc-foot">
-        <ScorePill label="Referral confidence" score={loc.referral.score} onClick={() => setWhy(!why)} active={why} />
+        <ScorePill label={TERMS.destination.label} score={loc.referral.score} onClick={() => setWhy(!why)} active={why} />
         <button className="pi-link" onClick={() => setWhy(!why)}>Why {loc.referral.score}%?</button>
         <div className="pi-loc-evidence">
           {confirmedBy.length ? <>Confirmed by: {confirmedBy.map((s) => <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className={`pi-cite pi-cite-${s.family}`}><span className="pi-cite-type">{FAMILY_LABEL[s.family]}</span> {s.name}</a>)}</> : <span className="pi-muted">Evidence: NPI record only</span>}
@@ -260,13 +262,16 @@ function ProviderCard({ view }: { view: ReferralView }) {
   const [why, setWhy] = useState(true);
   const p = view.provider;
   const r = view.research;
+  const tax = p.taxonomies.find((t) => t.primary) ?? p.taxonomies[0];
+  const conflict = tax ? specialtyConflict({ npiSpecialty: tax.desc, taxonomyCode: tax.code, licence: view.license, researchDifferent: r?.specialty.status === "different", researchSpecialty: r?.specialty.value ?? null }) : null;
   return (
     <section className="pi-card">
       <div className="pi-card-title-row">
-        <h2 className="pi-card-title"><Icon name="user" /> Provider identity</h2>
-        <ScorePill label="Provider confidence" score={view.providerScore.score} onClick={() => setWhy(!why)} active={why} />
+        <h2 className="pi-card-title"><Icon name="user" /> Identity &amp; specialty</h2>
+        <ScorePill label={TERMS.verification.label} score={view.providerScore.score} onClick={() => setWhy(!why)} active={why} />
       </div>
-      <p className="pi-muted" style={{ marginTop: 0 }}>How confident we are that this provider's identity, specialty, professional status and current practice are legitimate.</p>
+      <p className="pi-muted" style={{ marginTop: 0 }}>{TERMS.verification.question} Checks the NPI identity, taxonomy, state licence and current practice evidence. It does not rate the clinician's quality.</p>
+      {conflict && <ConflictCard c={conflict} />}
       {why && <Breakdown score={view.providerScore} title={`Why ${view.providerScore.score}%?`} />}
       <dl className="pi-kvs" style={{ marginTop: 16 }}>
         <div className="pi-kv"><dt>Name</dt><dd>{p.name}{p.credential ? `, ${p.credential}` : ""}</dd></div>
@@ -441,8 +446,8 @@ function HowScored() {
     <Collapse title={<><Icon name="info" /> How confidence works</>}>
       <p><strong>OpenAI proposes, code decides.</strong> AI searches the web, identifies which location each phone/fax belongs to and copies source labels verbatim. It never supplies a score.</p>
       <p>Deterministic code then drops sources web search didn't return, pages about other people, numbers that don't appear in the cited research text, and any “referral fax” whose source label doesn't say referral. It assigns source families by domain rule where it can.</p>
-      <p><strong>Provider confidence</strong> = active NPI (35) + taxonomy match (10) + active WA licence by number (20) + identity on an official page (20) + specialty corroborated (10) + current affiliation official (5), minus conflicts/staleness.</p>
-      <p><strong>Referral confidence</strong> = location on an official page (30; other source 18; NPI only 10) + extra source families (≤10) + phone (15–20) + fax (15; NPI only 5) + fax labelled referral (15 official / 8 other) + referral instructions (5) + current official source (5), minus stale/former location, fax disagreement, or a fax that belongs to another location.</p>
+      <p><strong>{TERMS.verification.label}</strong> ({TERMS.verification.question.toLowerCase()}) = active NPI (35) + taxonomy match (10) + active WA licence by number (20) + identity on an official page (20) + specialty corroborated (10) + current affiliation official (5), minus conflicts/staleness.</p>
+      <p><strong>{TERMS.destination.label}</strong> ({TERMS.destination.question.toLowerCase()}) = location on an official page (30; other source 18; NPI only 10) + extra source families (≤10) + phone (15–20) + fax (15; NPI only 5) + fax labelled referral (15 official / 8 other) + referral instructions (5) + current official source (5), minus stale/former location, fax disagreement, or a fax that belongs to another location.</p>
       <p>Aggregators and NPI mirrors carry no weight; the NPI connector and CMS NPPES count once. Scores are an explainable product heuristic, not calibrated probabilities.</p>
     </Collapse>
   );

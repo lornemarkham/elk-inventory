@@ -20,10 +20,12 @@ const FLOW: [string, Status, string?][] = [
   ["AI document understanding", "future"],
   ["Human review", "sim"],
   ["Audiology workflow", "sim"],
-  ["Specialist required", "sim"],
-  ["Geographic provider discovery", "shown", "NPI Registry + Census geocoding, by distance"],
-  ["Provider / location verification", "shown", "Web research + Washington licence data"],
-  ["Referral destination + fax", "shown", "Per-location fax with evidence; referral wording checked on the page"],
+  ["Audiologist selects referral type", "sim", "The clinical decision — supplied, never inferred"],
+  ["Deterministic candidate matching", "shown", "NPI taxonomy for the requested type + state + distance (NPI Registry, Census geocoding)"],
+  ["Deterministic checks", "shown", "Washington licence, licence-vs-taxonomy, age restrictions, hard mismatches"],
+  ["AI research + reconciliation", "shown", "Current practice, per-location fax, referral wording, stale NPI data — evidence only"],
+  ["Recommended vs Needs review", "shown", "Plain rules over that evidence; referral fax checked on the page"],
+  ["Human chooses the destination", "sim"],
   ["Human approval", "sim"],
   ["Outbound fax", "sim", "Nothing is transmitted"],
   ["Delivery signal", "sim", "Fake webhook"],
@@ -47,7 +49,7 @@ export default function Opportunity() {
   return (
     <div className="pi rd rd-opp">
       <header className="rd-top">
-        <a className="pi-brand" href="/npi-list/referral-demo"><span className="pi-logo rd-logo"><Icon name="fax" /></span><span>AI Referral Workflow</span></a>
+        <a className="pi-brand" href="/npi-list/referral-demo"><span className="pi-logo rd-logo"><Icon name="fax" /></span><span>Outbound Referral Workflow</span></a>
         <span className="rd-poc">Synthetic POC</span>
         <div className="rd-top-links">
           <a href="/npi-list/referral-demo">← Back to the demo</a>

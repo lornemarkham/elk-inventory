@@ -5,6 +5,7 @@ import type { NearbyResponse, NearbyResult, ProviderSummary, SearchResponse } fr
 import ReferralDetail from "./ReferralDetail";
 import { hydrateCached, isRunning, startResearch, useResearch } from "./research";
 import { Checks, FaxBlock, Icon, ScorePill, destinationChecks, initials } from "./ui";
+import { TERMS } from "./semantics";
 
 const SPECIALTIES = ["ENT / Otolaryngology", "Otology & Neurotology", "Pediatric Otolaryngology", "Audiologist", "Hearing Instrument Specialist", "Speech-Language Pathologist", "Neurology", "Allergy & Immunology"];
 const RADII = [5, 10, 25, 50];
@@ -106,7 +107,7 @@ export default function NpiApp() {
       {!route.npi && !route.specialty && route.q && <NameResults q={route.q} onOpen={(p) => navigate({ ...route, npi: p.npi })} />}
 
       <footer className="pi-foot">
-        Demonstration only — no patient data is used or stored. Provider data: CMS NPPES (federal NPI Registry, via Anthropic's NPI Registry connector and the CMS API); licences: Washington State DOH open data; distances: US Census Geocoder and ZIP centroids; contact evidence: open-web research. Confidence scores are transparent heuristics, not calibrated probabilities.
+        Demonstration only — no patient data is used or stored. Provider data: CMS NPPES (federal NPI Registry, via Anthropic's NPI Registry connector and the CMS API); licences: Washington State DOH open data; distances: US Census Geocoder and ZIP centroids; contact evidence: open-web research. Provider verification and destination confidence are transparent heuristics, not calibrated probabilities, and neither rates a clinician's quality.
       </footer>
     </div>
   );
@@ -281,7 +282,8 @@ function DestinationRow({ r, ctx, onOpen }: { r: NearbyResult; ctx: SearchContex
   const provider = view?.providerScore ?? r.provider;
   const checks = destinationChecks({
     active: r.status === "Active", loc: best, license: view?.license ?? r.license, researched: Boolean(view?.research),
-    specialtyCorroborated: Boolean(view?.research?.specialty.value), specialtyDifferent: view?.research?.specialty.status === "different", isOrg: r.enumerationType === "Organization",
+    specialtyCorroborated: Boolean(view?.research?.specialty.value), specialtyDifferent: view?.research?.specialty.status === "different",
+    npiSpecialty: r.specialty, currentSpecialty: view?.research?.specialty.value, isOrg: r.enumerationType === "Organization",
   });
   const supported = view?.research ? view.locations.filter((l) => l.status !== "former" && l.origin !== "npi").length : 0;
 
@@ -307,8 +309,8 @@ function DestinationRow({ r, ctx, onOpen }: { r: NearbyResult; ctx: SearchContex
       </div>
 
       <div className="pi-dest-scores">
-        <ScorePill label="Provider" score={provider.score} />
-        <ScorePill label="Referral" score={best.referral.score} />
+        <ScorePill label={TERMS.verification.label} score={provider.score} />
+        <ScorePill label={TERMS.destination.label} score={best.referral.score} />
       </div>
 
       <Checks checks={checks} />

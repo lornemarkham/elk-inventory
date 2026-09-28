@@ -1,6 +1,7 @@
 // ── NPI demo — small shared UI bits (TEMPORARY DEMO) ─────────────────────────
 import { useState } from "react";
 import type { ConfidenceScore, ContactNumber, EvidenceSource, FaxKind, LicenseCheck, PracticeLocation, SourceFamily } from "./types";
+import { faxSemantics, type SpecialtyConflict } from "./semantics";
 
 const PATHS: Record<string, string> = {
   search: "M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm10 2-4.35-4.35",
@@ -68,8 +69,8 @@ export const FAX_KIND_LABEL: Record<FaxKind, string> = {
   referral: "Referral fax",
   scheduling: "Scheduling fax",
   office: "Office fax",
-  general: "Fax",
-  unknown: "Fax",
+  general: "Office fax",
+  unknown: "Office fax",
 };
 
 export function formatDate(iso: string | null): string {
@@ -120,7 +121,7 @@ export interface Check { state: "ok" | "unknown" | "bad"; label: string }
 
 const nonFederal = (fams: SourceFamily[]) => fams.filter((f) => f !== "federal" && f !== "aggregator");
 
-export function destinationChecks(o: { active: boolean; loc: PracticeLocation; license: LicenseCheck | null; researched: boolean; specialtyCorroborated: boolean; specialtyDifferent?: boolean; isOrg: boolean }): Check[] {
+export function destinationChecks(o: { active: boolean; loc: PracticeLocation; license: LicenseCheck | null; researched: boolean; specialtyCorroborated: boolean; specialtyDifferent?: boolean; npiSpecialty?: string | null; currentSpecialty?: string | null; isOrg: boolean }): Check[] {
   const { loc } = o;
   const out: Check[] = [];
   out.push(o.active ? { state: "ok", label: "Active NPI" } : { state: "bad", label: "NPI deactivated" });
@@ -132,7 +133,7 @@ export function destinationChecks(o: { active: boolean; loc: PracticeLocation; l
     else if (/^active/i.test(best.status)) out.push({ state: lic.match === "exact" ? "ok" : "unknown", label: `WA licence ${best.status.toLowerCase()}${lic.match === "exact" ? "" : " (name match)"}` });
     else out.push({ state: "bad", label: `WA licence ${best.status.toLowerCase()}` });
   }
-  out.push(o.specialtyDifferent ? { state: "bad", label: "Current specialty differs from NPI" } : o.specialtyCorroborated ? { state: "ok", label: "Specialty corroborated" } : { state: "ok", label: "Specialty in NPI taxonomy" });
+  out.push(o.specialtyDifferent ? { state: "bad", label: o.npiSpecialty && o.currentSpecialty ? `Specialty mismatch: NPI lists ${o.npiSpecialty}; current practice evidence suggests ${o.currentSpecialty}` : "Specialty mismatch between NPI and current practice evidence" } : o.specialtyCorroborated ? { state: "ok", label: "Specialty corroborated" } : { state: "ok", label: "Specialty in NPI taxonomy" });
   const locOk = nonFederal(loc.families).length > 0;
   if (loc.status === "former") out.push({ state: "bad", label: "Provider has left this location" });
   else if (loc.status === "possibly_stale") out.push({ state: "bad", label: "Location may be stale" });
@@ -141,7 +142,8 @@ export function destinationChecks(o: { active: boolean; loc: PracticeLocation; l
   out.push(!phone ? { state: "unknown", label: "No phone found" } : nonFederal(phone.families).length ? { state: "ok", label: "Phone corroborated" } : { state: "unknown", label: "Phone from NPI only" });
   const fax = loc.bestFax;
   out.push(!fax ? { state: "unknown", label: "No fax found" } : nonFederal(fax.families).length ? { state: "ok", label: "Fax corroborated" } : { state: "unknown", label: "Fax from NPI only" });
-  out.push(fax?.faxKind === "referral" && fax.labelCheck !== "unverifiable" ? { state: "ok", label: "Referral fax labelled by source" } : fax?.faxKind === "referral" ? { state: "unknown", label: "Referral fax reported, page not checkable" } : { state: "unknown", label: "Referral-specific fax not established" });
+  const sem = faxSemantics(fax);
+  out.push(sem.kind === "referral" ? { state: "ok", label: "Referral fax confirmed by source" } : sem.kind === "referral_unchecked" ? { state: "unknown", label: "Referral fax reported, page not checkable" } : { state: "unknown", label: fax ? "Office fax only — referral use not confirmed" : "Referral-specific fax not established" });
   return out;
 }
 
@@ -157,22 +159,28 @@ export function Checks({ checks }: { checks: Check[] }) {
   );
 }
 
+// Fax semantics are spelled out in words; colour only reinforces them.
 export function FaxBlock({ fax, compact = false }: { fax: ContactNumber | null; compact?: boolean }) {
-  if (!fax) {
-    return (
-      <div className="pi-fax pi-fax-none">
-        <div className="pi-fax-kind">Fax</div>
-        <div className="pi-fax-num pi-muted">Not found</div>
-      </div>
-    );
-  }
-  const referral = fax.faxKind === "referral";
+  const sem = faxSemantics(fax);
   return (
-    <div className={`pi-fax ${referral ? "pi-fax-referral" : ""} ${compact ? "pi-fax-compact" : ""}`}>
-      <div className="pi-fax-kind"><Icon name="fax" size={13} /> {FAX_KIND_LABEL[fax.faxKind ?? "unknown"]}</div>
-      <div className="pi-fax-num pi-mono">{fax.number}</div>
-      {!compact && fax.label && <div className="pi-fax-label">Source label: “{fax.label}”</div>}
-      {!compact && referral && <div className="pi-fax-label">{fax.labelCheck === "page" ? "✓ Referral wording checked on the source page" : "Source page couldn't be machine-checked — confirm by phone"}</div>}
+    <div className={`pi-fax pi-fax-${sem.kind === "referral" ? "referral" : sem.kind === "none" ? "none" : sem.kind === "referral_unchecked" ? "unchecked" : "office"} ${compact ? "pi-fax-compact" : ""}`}>
+      <div className="pi-fax-kind"><Icon name="fax" size={13} /> <span className="pi-fax-title">{sem.title}</span></div>
+      {fax ? <div className="pi-fax-num pi-mono">{fax.number}</div> : null}
+      <div className="pi-fax-sem">{compact ? sem.short : sem.detail}</div>
+      {!compact && fax?.label && <div className="pi-fax-label">Source label: “{fax.label}”</div>}
+    </div>
+  );
+}
+
+// "Specialty mismatch" with the actual conflicting values side by side.
+export function ConflictCard({ c }: { c: SpecialtyConflict }) {
+  return (
+    <div className="pi-conflict" role="note">
+      <div className="pi-conflict-title"><Icon name="alert" size={13} /> {c.title}</div>
+      <dl className="pi-conflict-rows">
+        {c.rows.map((r) => <div key={r.source} className={`pi-conflict-${r.kind}`}><dt>{r.source}</dt><dd>{r.value}</dd></div>)}
+      </dl>
+      <div className="pi-conflict-why">{c.explanation}</div>
     </div>
   );
 }

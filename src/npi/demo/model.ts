@@ -7,7 +7,7 @@ import type { ContactNumber, EvidenceSource, PracticeLocation, ReferralResearch 
 
 // ── Synthetic patients ────────────────────────────────────────────────────────
 
-export type ScenarioId = "A" | "B" | "C" | "D" | "E";
+export type ScenarioId = "A" | "B" | "C" | "D" | "E" | "F";
 
 export interface Scenario {
   id: ScenarioId;
@@ -15,7 +15,9 @@ export interface Scenario {
   patient: string;
   blurb: string;
   priority: "Routine" | "Urgent";
-  specialty: string;
+  // The referral type the (synthetic) audiologist already selected. The demo
+  // never infers it from the clinical text; the user can change it in step 2.
+  referralType: string;
   attachments: AttachmentId[];
   // Air-conduction thresholds (dB HL) at 250, 500, 1k, 2k, 4k, 8k Hz — synthetic.
   audiogram: { right: number[]; left: number[]; bone?: { right: number[]; left: number[] } };
@@ -33,7 +35,7 @@ export const SCENARIOS: Scenario[] = [
     patient: "Jamie Example",
     blurb: "Left ear worse than right, with poorer word recognition on the left.",
     priority: "Routine",
-    specialty: "ENT / Otolaryngology",
+    referralType: "ENT / Otolaryngology",
     attachments: ["audiogram", "report", "insurance"],
     audiogram: { right: [15, 15, 20, 25, 30, 35], left: [25, 30, 40, 55, 65, 70] },
     record: record([
@@ -65,7 +67,7 @@ export const SCENARIOS: Scenario[] = [
     patient: "Taylor Sample",
     blurb: "Sudden right-sided loss noticed three days ago.",
     priority: "Urgent",
-    specialty: "ENT / Otolaryngology",
+    referralType: "ENT / Otolaryngology",
     attachments: ["audiogram", "report", "insurance"],
     audiogram: { right: [45, 50, 60, 65, 70, 75], left: [10, 10, 15, 15, 20, 25] },
     record: record([
@@ -96,7 +98,7 @@ export const SCENARIOS: Scenario[] = [
     patient: "Riley Placeholder",
     blurb: "Left-sided tinnitus for six months, near-symmetric hearing.",
     priority: "Routine",
-    specialty: "ENT / Otolaryngology",
+    referralType: "ENT / Otolaryngology",
     attachments: ["audiogram", "report", "insurance"],
     audiogram: { right: [10, 10, 15, 20, 25, 30], left: [10, 15, 15, 25, 30, 35] },
     record: record([
@@ -127,7 +129,7 @@ export const SCENARIOS: Scenario[] = [
     patient: "Morgan Demo",
     blurb: "Right conductive loss with a flat tympanogram.",
     priority: "Routine",
-    specialty: "ENT / Otolaryngology",
+    referralType: "ENT / Otolaryngology",
     attachments: ["audiogram", "tymp", "report", "insurance"],
     audiogram: { right: [40, 40, 35, 35, 40, 45], left: [15, 10, 10, 15, 20, 25], bone: { right: [10, 10, 10, 15, 15, 20], left: [10, 10, 10, 15, 20, 25] } },
     record: record([
@@ -153,12 +155,43 @@ export const SCENARIOS: Scenario[] = [
     ]),
   },
   {
+    id: "F",
+    title: "Neurology referral",
+    patient: "Jordan Testcase",
+    blurb: "The audiologist has chosen a neurology referral per clinic protocol.",
+    priority: "Routine",
+    referralType: "Neurology",
+    attachments: ["audiogram", "report", "insurance"],
+    audiogram: { right: [15, 15, 20, 20, 25, 30], left: [15, 20, 20, 25, 25, 30] },
+    record: record([
+      "Patient: Jordan Testcase",
+      "DOB: 02/14/1983",
+      "Location: Seattle, WA 98115",
+      "Phone: (555) 010-0151",
+      "Insurance: Example Health PPO",
+      "Member ID: DEMO-0000-0006",
+      "",
+      "Audiology:",
+      "Hearing within normal limits to mild high-frequency loss, symmetric.",
+      "Vestibular screening completed; results attached.",
+      "",
+      "Relevant history:",
+      "Episodic dizziness with headaches reported over several months (synthetic).",
+      "",
+      "Reason for referral:",
+      "Neurology evaluation, as selected by the referring audiologist.",
+      "",
+      "Notes:",
+      "Referral type chosen by the audiologist per clinic protocol — not inferred by software.",
+    ]),
+  },
+  {
     id: "E",
     title: "Custom fake referral",
     patient: "Casey Fictional",
     blurb: "Start from a blank synthetic template and write your own.",
     priority: "Routine",
-    specialty: "ENT / Otolaryngology",
+    referralType: "ENT / Otolaryngology",
     attachments: ["report", "insurance"],
     audiogram: { right: [15, 15, 15, 20, 20, 25], left: [15, 15, 15, 20, 20, 25] },
     record: record([
@@ -269,13 +302,14 @@ export function searchOrigin(location: string): string {
 // Deterministic context the provider search can't know on its own.
 
 export function pediatricMismatch(text: string, age: number | null): boolean {
-  return age !== null && age >= 18 && /pediatric|paediatric|children'?s|childrens|\bkids\b/i.test(text);
+  return age !== null && age >= 18 && /pediatric|paediatric|children['’]?s|childrens|\bkids\b/i.test(text);
 }
 
 // ── The referral draft ───────────────────────────────────────────────────────
 
 export interface Destination {
-  npi: string;
+  kind: "researched" | "controlled"; // controlled = the synthetic test destination (./controlled.ts)
+  npi: string | null;
   provider: string; // display name, e.g. "Clifford Robert Hume, MD"
   specialty: string;
   practice: string;
@@ -287,14 +321,16 @@ export interface Destination {
   faxChecked: boolean; // referral wording checked on the live source page
   faxLabel: string | null; // verbatim label from the source
   faxSources: { name: string; url: string; domain: string }[];
-  providerScore: number;
-  referralScore: number;
+  providerScore: number | null; // provider verification (null for the synthetic destination)
+  referralScore: number | null; // destination confidence
   researchedAt: string | null;
+  reviewReasons: string[]; // why it was in "Needs review" when the human chose it
 }
 
-export function toDestination(o: { npi: string; name: string; credential: string | null; specialty: string; loc: PracticeLocation; fax: ContactNumber; providerScore: number; researchedAt: string | null; sources: EvidenceSource[] }): Destination {
+export function toDestination(o: { npi: string; name: string; credential: string | null; specialty: string; loc: PracticeLocation; fax: ContactNumber; providerScore: number; researchedAt: string | null; sources: EvidenceSource[]; reviewReasons?: string[] }): Destination {
   const { loc, fax } = o;
   return {
+    kind: "researched",
     npi: o.npi,
     provider: o.credential ? `${o.name}, ${o.credential}` : o.name,
     specialty: o.specialty,
@@ -310,6 +346,7 @@ export function toDestination(o: { npi: string; name: string; credential: string
     providerScore: o.providerScore,
     referralScore: loc.referral.score,
     researchedAt: o.researchedAt,
+    reviewReasons: o.reviewReasons ?? [],
   };
 }
 
@@ -323,7 +360,7 @@ export interface ReferralDraft {
 }
 
 export function draftReferral(p: PatientRecord, s: Scenario, dest: Destination, from = DEMO_CLINIC): ReferralDraft {
-  const reason = p.reason.split("\n")[0]?.replace(/\.$/, "") || `${s.specialty.split(" / ")[0]} evaluation`;
+  const reason = p.reason.split("\n")[0]?.replace(/\.$/, "") || `${s.referralType.split(" / ")[0]} evaluation`;
   const clinical = [p.audiology, p.history && `History: ${p.history}`].filter(Boolean).join("\n\n");
   return {
     priority: s.priority,
@@ -471,7 +508,7 @@ export interface InboundFax {
   confidence: number;
 }
 
-export function simulateInbound(tx: FaxTransaction, s: Scenario, now = new Date()): InboundFax {
+export function simulateInbound(tx: FaxTransaction, s: Scenario, now = new Date(), referralType = s.referralType): InboundFax {
   const appt = new Date(now);
   appt.setDate(appt.getDate() + (s.priority === "Urgent" ? 2 : 12));
   while (appt.getDay() === 0 || appt.getDay() === 6) appt.setDate(appt.getDate() + 1);
@@ -487,7 +524,7 @@ export function simulateInbound(tx: FaxTransaction, s: Scenario, now = new Date(
     classificationConfidence: 96,
     matchedPatient: tx.patient.name,
     matchBasis: ["Patient name", "Date of birth", `Our transaction ${tx.id} on the returned cover sheet`],
-    matchedReferral: `${s.specialty.split(" / ")[0]} referral · ${tx.id}`,
+    matchedReferral: `${referralType.split(" / ")[0]} referral · ${tx.id}`,
     extractedStatus: "Appointment scheduled",
     appointment: appt.toISOString(),
     appointmentWith: tx.destination.provider,

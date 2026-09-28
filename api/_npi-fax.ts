@@ -230,7 +230,10 @@ export function faxInboxForm(cfg: SrfaxConfig, from: Date, to: Date): URLSearchP
 // counts: sizes only (never content) so a miss can be diagnosed.
 export interface EndpointReceipt { found: boolean; receivedAt: string | null; pages: number | null; receiveStatus: string | null; basis: string; counts?: { inbox: number; fromOurCallerId: number; unreadableDates: number } }
 
-export const RECEIPT_WINDOW_S = 30 * 60;
+// SRFax times are minute-granular; a 1-page test fax takes seconds. Observed on
+// production (Sep 2026): two sends five minutes apart both fell inside a 30-min
+// window, so the window is kept tight — the call's duration plus two minutes.
+export const RECEIPT_SLACK_S = 120;
 
 // SRFax gives both dates in the ACCOUNT's timezone, so they're compared as naive
 // wall-clock times (never converted). Seconds since an arbitrary epoch, or null.
@@ -251,18 +254,19 @@ export function naiveSeconds(v: unknown): number | null {
   return null;
 }
 
-export function matchReceipt(json: unknown, sent: { callerId: string; pages: number | null; dateSent: string | null }): EndpointReceipt | { error: string } {
+export function matchReceipt(json: unknown, sent: { callerId: string; pages: number | null; dateSent: string | null; duration?: number | null }): EndpointReceipt | { error: string } {
   const r = json as { Status?: string; Result?: unknown } | null;
   if (r?.Status !== "Success") return { error: `SRFax: ${typeof r?.Result === "string" ? r.Result : "inbox lookup failed"}` };
   const rows = Array.isArray(r.Result) ? (r.Result as Record<string, unknown>[]) : [];
   const sentAt = naiveSeconds(sent.dateSent);
   const ours = rows.filter((x) => String(x.CallerID ?? "").replace(/\D/g, "").endsWith(sent.callerId));
   const counts = { inbox: rows.length, fromOurCallerId: ours.length, unreadableDates: ours.filter((x) => naiveSeconds(x.Date) === null).length };
-  const basis = `inbound fax on this SRFax account from our caller ID, ${sent.pages ?? "?"} page(s), within ${RECEIPT_WINDOW_S / 60} min of SRFax's DateSent`;
+  const windowS = RECEIPT_SLACK_S + Math.max(0, sent.duration ?? 0);
+  const basis = `exactly one inbound fax on this SRFax account from our caller ID, ${sent.pages ?? "?"} page(s), within ±${Math.round(windowS / 60)} min of SRFax's DateSent`;
   if (sentAt === null || sent.pages == null) return { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: `${basis} — not checked: SRFax's DateSent/Pages couldn't be read`, counts };
   const hits = ours.filter((x) => {
     const at = naiveSeconds(x.Date);
-    return Number(x.Pages) === sent.pages && at !== null && Math.abs(at - sentAt) <= RECEIPT_WINDOW_S;
+    return Number(x.Pages) === sent.pages && at !== null && Math.abs(at - sentAt) <= windowS;
   });
   // Two candidates in the window would make the match ambiguous: claim nothing.
   if (hits.length !== 1) return { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: hits.length > 1 ? `${basis} — ${hits.length} candidates, ambiguous` : basis, counts };

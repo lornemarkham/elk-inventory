@@ -116,7 +116,7 @@ export default async function handler(req: Request): Promise<Response> {
       if (body.action === "status") return json({ ok: true, checkedAt: new Date().toISOString(), status: r.status, callback: callbacks.get(faxId) ?? null });
       if (r.status.phase !== "sent") return json({ ok: true, checkedAt: new Date().toISOString(), receipt: { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: "not checked: SRFax does not report the fax as Sent" } });
       const sent = Date.now();
-      const m = matchReceipt(await srfax(faxInboxForm(cfg, new Date(sent - 86400_000), new Date(sent + 86400_000))), { callerId: cfg.callerId, pages: r.status.pages, dateSent: r.status.dateSent });
+      const m = matchReceipt(await srfax(faxInboxForm(cfg, new Date(sent - 86400_000), new Date(sent + 86400_000))), { callerId: cfg.callerId, pages: r.status.pages, dateSent: r.status.dateSent, duration: r.status.duration });
       return "error" in m ? json({ ok: false, error: m.error }, 502) : json({ ok: true, checkedAt: new Date().toISOString(), receipt: m });
     } catch (err) {
       console.error("[npi-fax] status", (err as Error).message);

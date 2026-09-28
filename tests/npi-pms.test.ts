@@ -164,12 +164,16 @@ test("receipt: exactly one matching inbound fax (caller ID, pages, time) — oth
   const hit = matchReceipt({ Status: "Success", Result: [row({})] }, sent);
   assert.ok(!("error" in hit) && hit.found);
   assert.ok(!JSON.stringify(hit).includes("secret") && !JSON.stringify(hit).includes("Viewed"), "no file names, no read flag");
-  for (const miss of [row({ CallerID: "2065550100" }), row({ Pages: 2 }), row({ Date: "2026-09-28 13:00:00" })]) {
+  for (const miss of [row({ CallerID: "2065550100" }), row({ Pages: 2 }), row({ Date: "2026-09-28 13:00:00" }), row({ Date: "2026-09-28 10:05:00" })]) {
     const r = matchReceipt({ Status: "Success", Result: [miss] }, sent);
     assert.ok(!("error" in r) && !r.found);
   }
-  const amb = matchReceipt({ Status: "Success", Result: [row({}), row({ Date: "2026-09-28 10:05:00" })] }, sent);
+  const amb = matchReceipt({ Status: "Success", Result: [row({}), row({ Date: "2026-09-28 09:59:30" })] }, sent);
   assert.ok(!("error" in amb) && !amb.found && /ambiguous/.test(amb.basis));
+  // Production shape: two test sends five minutes apart are told apart.
+  const prod = [row({ Date: "Sep 28, 2026 03:13 AM" }), row({ Date: "Sep 28, 2026 03:18 AM" }), row({ Date: "Sep 28, 2026 02:40 AM" })];
+  const second = matchReceipt({ Status: "Success", Result: prod }, { callerId: "7785062042", pages: 1, dateSent: "Sep 28, 2026 03:18 AM", duration: 1 });
+  assert.ok(!("error" in second) && second.found && second.receivedAt === "Sep 28, 2026 03:18 AM");
   const noDate = matchReceipt({ Status: "Success", Result: [row({})] }, { ...sent, dateSent: null });
   assert.ok(!("error" in noDate) && !noDate.found);
   assert.ok("error" in matchReceipt({ Status: "Failed", Result: "bad creds" }, sent));

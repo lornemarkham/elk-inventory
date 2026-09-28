@@ -10,10 +10,10 @@
 // No paid API is called here, so this endpoint needs no demo key.
 
 import type { LicenseCheck, NearbyResponse, NearbyResult, ProviderDetail } from "../src/npi/types";
-import { cmsQueryAll, normalize } from "./_npi-lib.ts";
-import { addressKey, geocodeAddresses, matchesSpecialty, resolveOrigin, resolveSpecialty, SPECIALTY_DEFS } from "./_npi-geo.ts";
-import { checkWaLicenses } from "./_npi-wa.ts";
-import { buildView, streetKey } from "./_npi-referral.ts";
+import { cmsQueryAll, normalize } from "./_npi-lib";
+import { addressKey, geocodeAddresses, matchesSpecialty, resolveOrigin, resolveSpecialty, SPECIALTY_DEFS } from "./_npi-geo";
+import { checkWaLicenses } from "./_npi-wa";
+import { buildView, streetKey } from "./_npi-referral";
 
 export class NearbyError extends Error {}
 

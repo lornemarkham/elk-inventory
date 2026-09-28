@@ -2,8 +2,8 @@
 // Outbound-referral web research for one provider. Streams newline-delimited
 // JSON ResearchEvents (progress + keeps the Edge 25s first-byte limit happy).
 // Paid OpenAI calls: requires the demo key (X-Demo-Key) — see api/_npi-guard.ts.
-import { clientIp, demoKeyOk, takeResearchSlot } from "./_npi-guard.ts";
-import { buildView, licenseFor, originFrom, researchProvider, specialtyFromParam } from "./_npi-referral.ts";
+import { clientIp, demoKeyOk, takeResearchSlot } from "./_npi-guard";
+import { buildView, licenseFor, originFrom, researchProvider, specialtyFromParam } from "./_npi-referral";
 import type { ResearchEvent } from "../src/npi/types";
 
 export const config = { runtime: "edge" };

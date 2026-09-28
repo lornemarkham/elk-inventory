@@ -2,8 +2,8 @@
 // GET: registry + licence baseline view. POST { research }: the same view
 // re-scored with research the browser already holds (no OpenAI call), so a
 // cached result can be shown for a different search origin.
-import { getProvider, json } from "./_npi-lib.ts";
-import { buildView, licenseFor, originFrom, specialtyFromParam } from "./_npi-referral.ts";
+import { getProvider, json } from "./_npi-lib";
+import { buildView, licenseFor, originFrom, specialtyFromParam } from "./_npi-referral";
 import type { ReferralResearch } from "../src/npi/types";
 
 export const config = { runtime: "edge" };

@@ -19,7 +19,7 @@ import type {
   ScoreItem,
   SourceFamily,
 } from "../src/npi/types";
-import { bestLicense, isActiveStatus, isRestrictedStatus } from "./_npi-wa.ts";
+import { bestLicense, isActiveStatus, isRestrictedStatus } from "./_npi-wa";
 
 export const FAMILY_LABEL: Record<SourceFamily, string> = {
   federal: "Federal (CMS/NPPES)",

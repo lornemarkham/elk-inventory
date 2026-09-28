@@ -25,10 +25,10 @@ import type {
   ResearchEvent,
   SourceFamily,
 } from "../src/npi/types";
-import { formatPhone, getProvider } from "./_npi-lib.ts";
-import { addressKey, geocodeAddresses, geocodeOne, haversineMiles, matchesSpecialty, resolveSpecialty, roundMiles, type SpecialtyDef } from "./_npi-geo.ts";
-import { checkWaLicenses } from "./_npi-wa.ts";
-import { countingFamilies, fieldConfidence, fieldFrom, pickBestFax, scoreProvider, scoreReferral, sourceFamiliesOf } from "./_npi-score.ts";
+import { formatPhone, getProvider } from "./_npi-lib";
+import { addressKey, geocodeAddresses, geocodeOne, haversineMiles, matchesSpecialty, resolveSpecialty, roundMiles, type SpecialtyDef } from "./_npi-geo";
+import { checkWaLicenses } from "./_npi-wa";
+import { countingFamilies, fieldConfidence, fieldFrom, pickBestFax, scoreProvider, scoreReferral, sourceFamiliesOf } from "./_npi-score";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = any;

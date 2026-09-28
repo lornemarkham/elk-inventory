@@ -1,7 +1,7 @@
 // ── /api/npi-nearby?specialty=&location=&radius= — TEMPORARY NPI demo ─────────
 // Geographic referral search. Free public APIs only (see api/_npi-nearby.ts).
-import { json } from "./_npi-lib.ts";
-import { NearbyError, RADII, searchNearby } from "./_npi-nearby.ts";
+import { json } from "./_npi-lib";
+import { NearbyError, RADII, searchNearby } from "./_npi-nearby";
 
 export const config = { runtime: "edge" };
 

@@ -13,11 +13,16 @@ function npiDevApi(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         // Mirror vercel.json's /npi-list rewrite.
         if (req.url && /^\/npi-list(\/)?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list\/?/, '/npi-list/index.html')
-        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|validate))(\?.*)?$/)
+        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research))(\?.*)?$/)
         if (!m) return next()
         try {
           const mod = await server.ssrLoadModule(`/api/${m[1]}.ts`)
-          const response: Response = await mod.default(new Request(`http://localhost${req.url}`))
+          const chunks: Buffer[] = []
+          for await (const c of req) chunks.push(c as Buffer)
+          const headers = new Headers()
+          for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v)
+          const body = req.method === 'POST' ? Buffer.concat(chunks) : undefined
+          const response: Response = await mod.default(new Request(`http://localhost${req.url}`, { method: req.method, headers, body }))
           res.statusCode = response.status
           response.headers.forEach((v, k) => res.setHeader(k, v))
           if (!response.body) return res.end()

@@ -4,6 +4,8 @@
 // /npi-list/pms is the fake-PMS wrapper; /npi-list/embed/provider-intelligence is the
 // iframe page its SDK (public/npi-sdk/provider-intelligence.js) opens.
 // /npi-list/experiment is the observable / falsifiable experiment report (src/npi/experiment/*).
+// /npi-list/shared-knowledge is the Shared Organizational Knowledge POC (src/npi/org/*); the
+// experiment gets a one-line banner pointing at it, rendered here so Experiment.tsx is untouched.
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import NpiApp from "./NpiApp";
@@ -15,6 +17,8 @@ const FaxSettings = lazy(() => import("./demo/FaxSettings"));
 const PmsApp = lazy(() => import("./pms/PmsApp"));
 const EmbedPI = lazy(() => import("./pms/EmbedPI"));
 const Experiment = lazy(() => import("./experiment/Experiment"));
+const ExperimentBanner = lazy(() => import("./org/ExperimentBanner"));
+const OrgApp = lazy(() => import("./org/OrgApp"));
 
 const root = document.getElementById("root");
 if (!root) throw new Error("No root element");
@@ -26,7 +30,8 @@ const PAGES: Record<string, [() => React.ReactNode, string]> = {
   "/npi-list/fax-settings": [() => <FaxSettings />, "AI Referral Workflow — Synthetic POC"],
   "/npi-list/pms": [() => <PmsApp />, "ClinicDesk (fictional PMS) — Synthetic demo"],
   "/npi-list/embed/provider-intelligence": [() => <EmbedPI />, "Provider Intelligence"],
-  "/npi-list/experiment": [() => <Experiment />, "Provider Intelligence — engineering experiment"],
+  "/npi-list/experiment": [() => <><ExperimentBanner /><Experiment /></>, "Provider Intelligence — engineering experiment"],
+  "/npi-list/shared-knowledge": [() => <OrgApp />, "Lornsco — Shared Organizational Knowledge (POC)"],
 };
 const match = PAGES[path];
 const page = match ? match[0]() : <NpiApp />;

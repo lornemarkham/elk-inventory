@@ -58,6 +58,18 @@ export function classifyFax(modelKind: string | null | undefined, label: string 
   return { kind: claimed ? "unknown" : ((["scheduling", "office", "general"].includes(modelKind ?? "") ? modelKind : "unknown") as FaxKind), downgraded: claimed };
 }
 
+// "New Appointment Request Form; Fax referral to 206-985-3121 Attn: Clinical Intake"
+// → [{ digits: "2069853121", label: "Fax referral to 206-985-3121" }]. Only when the
+// text itself says referral; a bare "fax:" in instructions stays a plain fax.
+export function referralFaxesIn(text: string): { digits: string; label: string }[] {
+  const out: { digits: string; label: string }[] = [];
+  for (const m of text.matchAll(/([^.;\n]{0,60}?\bfax\b[^.;\n0-9]{0,40}?)(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/gi)) {
+    if (!/referr/i.test(m[1])) continue;
+    out.push({ digits: digitsOnly(m[2]), label: `${m[1].trim()} ${m[2]}`.trim() });
+  }
+  return out;
+}
+
 // ── Addresses ────────────────────────────────────────────────────────────────
 
 const DIRS = new Set(["N", "S", "E", "W", "NE", "NW", "SE", "SW", "NORTH", "SOUTH", "EAST", "WEST"]);
@@ -456,6 +468,15 @@ export async function finalizeResearch(
     if (!allIds.length || !l.line1) { dropped.push({ reason: "Location has no valid source or street address", detail: where }); return; }
     const ri = l.referralInstructions ? { value: l.referralInstructions.text, sourceIds: keep(l.referralInstructions.sourceIds, "referral instructions") } : null;
     const anp = l.acceptingNewPatients ? { value: l.acceptingNewPatients.text, accepting: Boolean(l.acceptingNewPatients.accepting), sourceIds: keep(l.acceptingNewPatients.sourceIds, "accepting new patients") } : null;
+    // A fax number written inside referral instructions ("Fax referrals to …") is a
+    // referral fax by the source's own words — still subject to the same checks.
+    if (ri && ri.sourceIds.length) {
+      for (const f of referralFaxesIn(ri.value)) {
+        if (faxes.some((x) => x.digits === f.digits && x.faxKind === "referral")) continue;
+        const n = makeNumber({ number: f.digits, label: f.label, faxKind: "referral", sourceIds: ri.sourceIds }, true, where);
+        if (n) { const same = faxes.findIndex((x) => x.digits === n.digits); if (same >= 0) faxes.splice(same, 1); faxes.push(n); }
+      }
+    }
     researched.push(blankLocation({
       id: `web-${i}`, name: l.name || l.organization || l.line1, organization: l.organization ?? null,
       line1: l.line1, line2: l.line2 ?? null, city: l.city ?? "", state: (l.state ?? "").toUpperCase().slice(0, 2), postalCode: l.postalCode ?? "",

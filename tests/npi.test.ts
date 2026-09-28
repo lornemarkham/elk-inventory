@@ -398,3 +398,20 @@ test("licence type must fit the specialty (audiologist registered under an ENT t
   assert.ok(s.items.some((i) => i.kind === "fail" && i.label.includes("doesn't fit")));
   assert.equal(scoreProvider({ ...base, license: WA_ACTIVE }).items.some((i) => i.label.includes("doesn't fit")), false);
 });
+
+test("fax number inside referral instructions becomes a referral fax (and only then)", async () => {
+  const { referralFaxesIn } = await import("../api/_npi-referral.ts");
+  assert.deepEqual(referralFaxesIn("New Appointment Request Form; Fax referral to 206-985-3121 Attn: Clinical Intake").map((x) => x.digits), ["2069853121"]);
+  assert.deepEqual(referralFaxesIn("Call to schedule. Fax: 206-555-0000."), []);
+  const parsed = emptyParsed();
+  parsed.sources = [meta("S1", "first_party")];
+  parsed.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], faxes: [{ number: "206-985-3392", label: "Fax", faxKind: "general", sourceIds: ["S1"] }], referralInstructions: { text: "Fax referrals to 206-985-3121, Attn: Clinical Intake", sourceIds: ["S1"] } })];
+  const r = await finalize(parsed, [S("S1", "https://www.seattlechildrens.org/x")], "Fax 206-985-3392. Fax referrals to 206-985-3121");
+  assert.equal(r.locations[0].bestFax?.digits, "2069853121");
+  assert.equal(r.locations[0].bestFax?.faxKind, "referral");
+  const hallucinated = emptyParsed();
+  hallucinated.sources = [meta("S1", "first_party")];
+  hallucinated.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], referralInstructions: { text: "Fax referrals to 206-000-1111", sourceIds: ["S1"] } })];
+  const r2 = await finalize(hallucinated, [S("S1", "https://x.org")], "no numbers here");
+  assert.equal(r2.locations[0].faxes.filter((f) => f.faxKind === "referral").length, 0, "still must appear in the research text");
+});

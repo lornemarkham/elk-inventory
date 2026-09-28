@@ -11,7 +11,7 @@ import { Breakdown, Checks, ConflictCard, FaxBlock, Icon, ScorePill, SourceChips
 import { TERMS } from "../semantics";
 import { loadSnapshot } from "./snapshot";
 import { toDestination, type Destination } from "./model";
-import { assessDestination, groupDestinations, resultsMatchIntent, savedResearchFor, snapshotAppliesTo, type Assessment } from "./routing";
+import { assessDestination, groupDestinations, noDestinationReason, resultsMatchIntent, savedResearchFor, snapshotAppliesTo, type Assessment } from "./routing";
 const RADII = [5, 10, 25, 50];
 const STAGES = ["Querying the federal NPI Registry for the requested taxonomy", "Geocoding every practice address", "Measuring distance from the patient's area", "Checking Washington licences", "Loading web-research evidence"];
 
@@ -89,10 +89,12 @@ export default function Specialists({ specialty, location, radius, age, flagged,
   const flaggedSet = new Set(flagged);
   const researched: Candidate[] = [];
   const registryOnly: NearbyResult[] = [];
+  const noDestination: { r: NearbyResult; reason: string }[] = [];
   for (const r of data.results) {
     const rs = getResearch(r.npi, ctx);
     const c = rs.view?.research ? candidate(r, rs.view, specialty, age, flaggedSet) : null;
     if (c) researched.push(c);
+    else if (rs.view?.research) noDestination.push({ r, reason: noDestinationReason(rs.view.locations) });
     else registryOnly.push(r);
   }
   const { recommended, review } = groupDestinations(researched);
@@ -129,8 +131,19 @@ export default function Specialists({ specialty, location, radius, age, flagged,
         <div className="rd-card rd-note">
           <Icon name="info" />
           <div>
-            <strong>No web research exists yet for these {label} providers.</strong> Below are registry matches only — the NPI taxonomy matches {label} and a practice address is within {data.radiusMi} miles — but no current location or fax has been verified.
-            {!useSnapshot && <> The saved Seattle research covers ENT only and is never substituted for other referral types.</>} Research a provider to establish a destination (paid AI call, needs the demo key).
+            <strong>These {label} providers need research before a destination can be offered with confidence.</strong> Each is a real registry match — NPI taxonomy {label}, practice address within {data.radiusMi} miles — but its current location and fax aren't verified yet.
+            {" "}Click <strong>Research</strong> on any provider below: live web research establishes identity, current practice, locations, phone and fax with evidence, then the same rules place it under Recommended or Needs review, where you can choose it.
+            {!useSnapshot && <> (The saved Seattle research covers ENT only and is never substituted for other referral types.)</>}
+          </div>
+        </div>
+      )}
+
+      {noDestination.length > 0 && (
+        <div className="rd-card rd-note rd-researched-none">
+          <Icon name="alert" />
+          <div>
+            <strong>Researched — no usable destination established ({noDestination.length})</strong>
+            <ul>{noDestination.map(({ r, reason }) => <li key={r.npi}>{r.name}{r.credential && `, ${r.credential}`}: {reason} <a href={`/npi-list?npi=${r.npi}`} target="_blank" rel="noreferrer">Evidence ↗</a></li>)}</ul>
           </div>
         </div>
       )}
@@ -285,7 +298,7 @@ function RegistryOnly({ list, ctx, label, open }: { list: NearbyResult[]; ctx: S
   return (
     <details className="rd-registry" open={open}>
       <summary>{list.length} {open ? "" : "more "}{label} registry matches in range — not yet researched</summary>
-      <p className="pi-muted">Registry addresses and faxes are often stale, so these aren't offered as destinations until web research confirms a current location and fax. Research uses paid AI calls (about 1–2 minutes each) and needs the demo key.</p>
+      <p className="pi-muted">Not yet researched means we can't yet offer a destination with confidence — registry addresses and faxes are often stale. Research a provider to establish one: when the evidence supports a current location and fax, it moves up to Recommended or Needs review and can be chosen. Each run is a paid AI call (about 1–2 minutes) and needs the demo key.</p>
       {locked && (
         <form className="pi-keyform rd-key" onSubmit={(e) => { e.preventDefault(); setDemoKey(key); list.filter((r) => getResearch(r.npi, ctx).code === "locked").forEach((r) => startResearch(r.npi, ctx, false)); }}>
           <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Demo access key" aria-label="Demo access key" />
@@ -301,7 +314,7 @@ function RegistryOnly({ list, ctx, label, open }: { list: NearbyResult[]; ctx: S
               <span className="pi-muted">{r.nearest.distanceMi} mi · {r.nearest.organization ?? r.nearest.city}</span>
               <span className="pi-muted pi-mono">{r.nearest.bestFax ? `NPI fax ${r.nearest.bestFax.number}` : "no NPI fax"}</span>
               {isRunning(rs) ? <span className="rd-reg-status"><span className="pi-spinner" /> Researching…</span>
-                : rs.stage === "error" ? <span className="rd-reg-status pi-bad">{rs.code === "locked" ? "Needs demo key" : "Research failed"}</span>
+                : rs.stage === "error" ? <span className="rd-reg-status pi-bad" title={rs.error ?? ""}>{rs.code === "locked" ? "Needs demo key" : `Research failed${rs.error ? ` — ${rs.error}` : ""}`} {rs.code !== "locked" && <button className="pi-link" onClick={() => startResearch(r.npi, ctx, false)}>Retry</button>}</span>
                 : <button className="pi-btn" onClick={() => startResearch(r.npi, ctx, false)}><Icon name="sparkle" /> Research</button>}
             </div>
           );

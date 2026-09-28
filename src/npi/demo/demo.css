@@ -427,3 +427,16 @@
   .rd-qs { grid-template-columns: 1fr; }
   .rd-controlled-body { grid-template-columns: 1fr; }
 }
+
+/* ── Controlled live fax test (M021) ── */
+.rd-livebox { border: 2px solid #7e22ce; background: #faf5ff; margin: 16px 0; }
+.rd-live-title { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: 0.04em; color: #6b21a8; font-size: 15px; }
+.rd-live-facts { margin: 6px 0 12px; padding-left: 18px; font-size: 13.5px; line-height: 1.5; }
+.rd-live-off, .rd-live-err { display: flex; gap: 8px; align-items: flex-start; color: #9a3412; background: #fff7ed; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin-top: 8px; }
+.rd-send-live { background: #7e22ce; border-color: #7e22ce; }
+.rd-live-events li { align-items: flex-start; }
+.rd-live-poll { margin-top: 10px; font-size: 12.5px; }
+.rd-opev { border-left: 4px solid #64748b; }
+.rd-opev p { margin: 6px 0; }
+.rd-researched-none { margin: 10px 0; }
+.rd-researched-none li { margin: 4px 0; }

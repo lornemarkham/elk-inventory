@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 
@@ -10,10 +10,12 @@ function npiDevApi(): Plugin {
     name: 'npi-dev-api',
     apply: 'serve',
     configureServer(server) {
+      // Server-only secrets for the api/ handlers (e.g. SRFAX_*) from .env.local — never VITE_-prefixed, never bundled.
+      for (const [k, v] of Object.entries(loadEnv(server.config.mode, server.config.root, ['SRFAX_', 'OPENAI_', 'NPI_']))) process.env[k] ??= v
       server.middlewares.use(async (req, res, next) => {
         // Mirror vercel.json's /npi-list rewrite.
         if (req.url && /^\/npi-list(\/(referral-demo|opportunity))?\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list(\/(referral-demo|opportunity))?\/?/, '/npi-list/index.html')
-        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research))(\?.*)?$/)
+        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research|fax))(\?.*)?$/)
         if (!m) return next()
         try {
           const mod = await server.ssrLoadModule(`/api/${m[1]}.ts`)

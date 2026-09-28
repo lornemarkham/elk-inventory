@@ -132,3 +132,12 @@ export function groupDestinations<T extends { assessment: Assessment; distanceMi
     review: list.filter((c) => c.assessment.group === "review").sort(order),
   };
 }
+
+// ── Researched, but no destination could be established ─────────────────────
+// Research can promote a registry match to a destination only when evidence
+// supports one. When it can't, say why — never manufacture one.
+export function noDestinationReason(locations: { status: "current" | "possibly_stale" | "former" | "npi_only" }[]): string {
+  if (!locations.length) return "Research found no practice location for this provider.";
+  if (locations.every((l) => l.status === "former")) return "Evidence says the provider has left every known location — no current practice location was established.";
+  return "Research did not establish a usable destination.";
+}

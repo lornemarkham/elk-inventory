@@ -1,0 +1,97 @@
+// ── CONTROLLED live test fax — client side (SYNTHETIC POC ONLY) ──────────────
+// Talks to /api/npi-fax, which holds the SRFax credentials and the only live
+// destination. Real providers never come here: canSendLive() is false for
+// anything but the controlled synthetic destination, and the server refuses too.
+//
+// What SRFax reports is OPERATIONAL evidence about a transmission. It is kept in
+// its own record (LiveFax), never merged into the Destination, and never feeds
+// provider verification, destination confidence or referral fit.
+import { getDemoKey } from "../api";
+import { CONTROLLED } from "./controlled";
+import type { Destination } from "./model";
+
+export const canSendLive = (d: Pick<Destination, "kind" | "npi" | "fax">) =>
+  d.kind === "controlled" && d.npi === null && d.fax === CONTROLLED.fax;
+
+export interface SrfaxStatus {
+  sentStatus: string; // verbatim SRFax SentStatus: "In Progress" | "Sent" | "Failed" | "Sending Email"
+  phase: "in_progress" | "sent" | "failed" | "unknown";
+  dateQueued: string | null;
+  dateSent: string | null;
+  epochTime: string | null;
+  toFaxNumber: string | null;
+  pages: number | null;
+  duration: number | null;
+  errorCode: string | null;
+  remoteId: string | null;
+}
+
+export interface LiveFax {
+  mode: "live";
+  reference: string; // our reference, sent to SRFax as sAccountCode
+  to: string; // always the controlled number
+  phase: "submitting" | "submitted" | "in_progress" | "sent" | "failed" | "error";
+  faxId: string | null; // SRFax FaxDetailsID
+  submittedAt: string;
+  lastCheckedAt: string | null;
+  status: SrfaxStatus | null; // latest Get_FaxStatus result, verbatim
+  error: string | null; // SRFax/transport failure, verbatim — never turned into success
+  events: { at: string; label: string; detail: string }[];
+}
+
+export const liveDone = (l: LiveFax) => l.phase === "sent" || l.phase === "failed" || l.phase === "error";
+
+export function newLiveFax(reference: string, now = new Date()): LiveFax {
+  return { mode: "live", reference, to: CONTROLLED.fax, phase: "submitting", faxId: null, submittedAt: now.toISOString(), lastCheckedAt: null, status: null, error: null, events: [{ at: now.toISOString(), label: "Prepared", detail: "Synthetic test referral PDF built on the server from the canned scenario" }] };
+}
+
+type SendResponse = { ok: true; faxId: string; to: string; submittedAt: string } | { ok: false; error: string; code?: string };
+type StatusResponse = { ok: true; checkedAt: string; status: SrfaxStatus } | { ok: false; error: string; code?: string };
+
+export function applySend(l: LiveFax, r: SendResponse, now = new Date()): LiveFax {
+  const at = now.toISOString();
+  if (!r.ok) return { ...l, phase: "error", error: r.error, events: [...l.events, { at, label: "Not submitted", detail: r.error }] };
+  return { ...l, phase: "submitted", faxId: r.faxId, submittedAt: r.submittedAt, events: [...l.events, { at: r.submittedAt, label: "Submitted to SRFax", detail: `FaxDetailsID ${r.faxId}` }] };
+}
+
+export function applyStatus(l: LiveFax, r: StatusResponse, now = new Date()): LiveFax {
+  const at = now.toISOString();
+  if (!r.ok) return { ...l, lastCheckedAt: at, error: r.error }; // a failed lookup is not a fax failure; keep polling
+  const s = r.status;
+  const phase: LiveFax["phase"] = s.phase === "sent" ? "sent" : s.phase === "failed" ? "failed" : "in_progress";
+  const changed = l.status?.sentStatus !== s.sentStatus;
+  const detail = [s.errorCode && `ErrorCode ${s.errorCode}`, s.pages != null && `${s.pages} page${s.pages === 1 ? "" : "s"}`, s.dateSent && `DateSent ${s.dateSent}`].filter(Boolean).join(" · ") || "Reported by Get_FaxStatus";
+  return { ...l, phase, status: s, lastCheckedAt: r.checkedAt, error: null, events: changed ? [...l.events, { at: r.checkedAt, label: `SRFax: ${s.sentStatus || "(no status)"}`, detail }] : l.events };
+}
+
+// What an SRFax result does and does not establish. Deliberately separate
+// from the three provider questions.
+export function operationalEvidence(l: LiveFax): { claim: string; notProven: string[] } {
+  const claim = l.phase === "sent" ? "SRFax reports successful delivery to this fax endpoint."
+    : l.phase === "failed" ? `SRFax reports the transmission failed${l.status?.errorCode ? ` (${l.status.errorCode})` : ""}.`
+    : l.phase === "error" ? "The fax was not accepted by SRFax, or SRFax couldn't be reached."
+    : "SRFax has accepted the fax and reports it is still in progress.";
+  return {
+    claim,
+    notProven: [
+      "who owns or answers this fax endpoint",
+      "that the endpoint is appropriate for referrals",
+      "that a person read the fax",
+      "that a clinical referral was accepted",
+    ],
+  };
+}
+
+async function post<T>(body: unknown): Promise<T> {
+  const res = await fetch("/api/npi-fax", { method: "POST", headers: { "Content-Type": "application/json", "X-Demo-Key": getDemoKey() ?? "" }, body: JSON.stringify(body) });
+  try { return (await res.json()) as T; } catch { return { ok: false, error: `Fax service error (${res.status})` } as T; }
+}
+
+export const liveFaxConfig = () => post<{ ok: boolean; configured: boolean; destination: string }>({ action: "config" }).catch(() => ({ ok: false, configured: false, destination: CONTROLLED.fax }));
+
+export function sendLiveFax(d: Destination, scenarioId: string, reference: string): Promise<SendResponse> {
+  if (!canSendLive(d)) return Promise.resolve({ ok: false, code: "forbidden", error: "Live fax is only available for the controlled synthetic test destination." });
+  return post<SendResponse>({ action: "send", destinationId: CONTROLLED.id, scenarioId, reference }).catch(() => ({ ok: false as const, error: "Couldn't reach the fax service — the fax may or may not have been queued. Check the SRFax portal before retrying." }));
+}
+
+export const liveFaxStatus = (faxId: string) => post<StatusResponse>({ action: "status", faxId }).catch(() => ({ ok: false as const, error: "Couldn't reach the fax service for status." }));

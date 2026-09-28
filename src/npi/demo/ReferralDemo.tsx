@@ -16,16 +16,18 @@ import {
 } from "./model";
 import { REFERRAL_TYPES, intentKey } from "./routing";
 import { CONTROLLED, controlledDestination, controlledFit, isControlled } from "./controlled";
+import { applySend, applyStatus, canSendLive, liveDone, liveFaxConfig, liveFaxStatus, newLiveFax, operationalEvidence, sendLiveFax, type LiveFax } from "./live";
+import { getDemoKey, setDemoKey } from "../api";
 import "./demo.css";
 
-type Step = "patient" | "intent" | "search" | "prepare" | "review" | "send" | "timeline";
+type Step = "patient" | "intent" | "search" | "prepare" | "review" | "send" | "timeline" | "live";
 
 const STEPPER: { label: string; steps: Step[] }[] = [
   { label: "Patient", steps: ["patient", "intent"] },
   { label: "Destination", steps: ["search"] },
   { label: "Referral", steps: ["prepare"] },
   { label: "Review", steps: ["review"] },
-  { label: "Sent", steps: ["send", "timeline"] },
+  { label: "Sent", steps: ["send", "timeline", "live"] },
 ];
 
 interface State {
@@ -46,6 +48,7 @@ interface State {
   failed: FaxTransaction[]; // earlier failed fake faxes
   flagged: string[];
   inbound: InboundFax | null;
+  live: LiveFax | null; // CONTROLLED live SRFax test (synthetic destination only)
   times: Partial<Record<"started" | "searched" | "selected" | "prepared" | "reviewed", string>>;
 }
 
@@ -57,7 +60,7 @@ function fresh(id: ScenarioId = "A"): State {
   return {
     step: "patient", scenarioId: id, record: s.record, attachments: s.attachments.map((a) => SAMPLE_ATTACHMENTS[a]),
     specialty: s.referralType, location: searchOrigin(parseRecord(s.record).location), radius: 10, found: null,
-    destination: null, draft: null, reviewed: false, outcome: "deliver", tx: null, webhook: null, failed: [], flagged: [], inbound: null,
+    destination: null, draft: null, reviewed: false, outcome: "deliver", tx: null, webhook: null, failed: [], flagged: [], inbound: null, live: null,
     times: { started: new Date().toISOString() },
   };
 }
@@ -69,7 +72,9 @@ function load(): State {
       const s = JSON.parse(raw) as State;
       // A fake fax interrupted by a reload can't resume; go back to review.
       if (s.step === "send" && s.tx && s.tx.status !== "delivered" && s.tx.status !== "failed") return { ...s, step: "review", tx: null };
-      return s;
+      // A live submit interrupted before SRFax answered is NEVER resubmitted automatically.
+      if (s.live?.phase === "submitting") return { ...s, live: { ...s.live, phase: "error", error: "Interrupted before SRFax answered. It may or may not have been queued — check the SRFax portal before sending again." } };
+      return { ...s, live: s.live ?? null };
     }
   } catch { /* fall through */ }
   return fresh();
@@ -106,7 +111,7 @@ export default function ReferralDemo() {
             const can = i < stepIdx && !sent;
             return (
               <button key={g.label} className={`rd-stp ${i < stepIdx ? "rd-stp-done" : i === stepIdx ? "rd-stp-now" : ""}`} disabled={!can} onClick={() => can && go(target)}>
-                <span className="rd-stp-dot">{i < stepIdx ? <Icon name="check" size={11} /> : i + 1}</span>{g.label}
+                <span className="rd-stp-dot">{i < stepIdx ? <Icon name="check" size={11} /> : i + 1}</span>{i === STEPPER.length - 1 ? (st.destination && isControlled(st.destination) && st.step === "live" ? "Live fax test" : "Sent (simulated)") : g.label}
               </button>
             );
           })}
@@ -116,7 +121,7 @@ export default function ReferralDemo() {
           <a href="/npi-list/opportunity">Why explore this? →</a>
         </div>
       </header>
-      <div className="rd-banner"><Icon name="shield" size={14} /> <strong>SYNTHETIC DEMO DATA</strong> — fictional patients, no real patient information. Fax sending is simulated; nothing is sent to any provider.</div>
+      <div className="rd-banner"><Icon name="shield" size={14} /> <strong>SYNTHETIC DEMO DATA</strong> — fictional patients, no real patient information. Fax sending to real providers is always simulated — nothing is ever sent to them. Only the synthetic controlled test destination can receive a real test fax.</div>
 
       <main className="rd-main">
         {st.step === "patient" && (
@@ -153,7 +158,14 @@ export default function ReferralDemo() {
           <PrepareStep st={st} patient={patient} scenario={scenario} set={set} onBack={() => go("search")} onNext={() => go("review", { times: { ...st.times, prepared: now() } })} />
         )}
         {st.step === "review" && st.destination && st.draft && (
-          <ReviewStep st={st} patient={patient} set={set} onBack={() => go("prepare")}
+          <ReviewStep st={st} patient={patient} scenario={scenario} set={set} onBack={() => go("prepare")}
+            onSendLive={() => {
+              // Only the controlled synthetic destination; the server enforces the same.
+              if (!st.destination || !canSendLive(st.destination) || st.live) return;
+              const reference = `SYN-${Date.now().toString(36).toUpperCase()}`;
+              go("live", { live: newLiveFax(reference), times: { ...st.times, reviewed: now() } });
+              sendLiveFax(st.destination, st.scenarioId, reference).then((r) => set((s) => (s.live?.reference === reference ? { live: applySend(s.live, r) } : {})));
+            }}
             onSend={() => {
               const atts = st.attachments.filter((a) => st.draft!.attachmentIds.includes(a.id));
               const tx = createTransaction({ patient, destination: st.destination!, pages: pageCount(atts), outcome: st.outcome });
@@ -172,6 +184,9 @@ export default function ReferralDemo() {
             onAlternate={() => go("search", { failed: [...st.failed, st.tx!], tx: null, webhook: null, flagged: [...st.flagged, `${st.destination!.npi ?? CONTROLLED.id}|${st.destination!.fax.replace(/\D/g, "")}`] })}
             onTimeline={() => go("timeline")}
           />
+        )}
+        {st.step === "live" && st.live && st.destination && (
+          <LiveFaxStep st={st} live={st.live} patient={patient} set={set} onRestart={() => { setSt(fresh()); window.scrollTo({ top: 0 }); }} />
         )}
         {st.step === "timeline" && st.tx && (
           <TimelineStep st={st} patient={patient} scenario={scenario}
@@ -433,8 +448,9 @@ function DestinationSummary({ d }: { d: Destination }) {
 
 // ── Step 5 · Review ─────────────────────────────────────────────────────────
 
-function ReviewStep({ st, patient, set, onBack, onSend }: { st: State; patient: ReturnType<typeof parseRecord>; set: (p: Partial<State>) => void; onBack: () => void; onSend: () => void }) {
+function ReviewStep({ st, patient, scenario, set, onBack, onSend, onSendLive }: { st: State; patient: ReturnType<typeof parseRecord>; scenario: Scenario; set: (p: Partial<State>) => void; onBack: () => void; onSend: () => void; onSendLive: () => void }) {
   const d = st.destination!;
+  const live = canSendLive(d);
   const draft = st.draft!;
   const has = (id: string) => draft.attachmentIds.includes(id) && st.attachments.some((a) => a.id === id);
   const atts = st.attachments.filter((a) => draft.attachmentIds.includes(a.id));
@@ -468,8 +484,9 @@ function ReviewStep({ st, patient, set, onBack, onSend }: { st: State; patient: 
         <input type="checkbox" checked={st.reviewed} onChange={(e) => set({ reviewed: e.target.checked })} />
         <span>I've reviewed this referral and approve sending it.</span>
       </label>
+      {live && <LiveSendPanel scenario={scenario} approved={st.reviewed} onSendLive={onSendLive} />}
       <details className="rd-democtl">
-        <summary>Demo controls</summary>
+        <summary>Demo controls{live ? " (simulated send only)" : ""}</summary>
         <div className="rd-democtl-body">
           <span>Simulated outcome</span>
           <div className="rd-radius">
@@ -479,8 +496,149 @@ function ReviewStep({ st, patient, set, onBack, onSend }: { st: State; patient: 
         </div>
       </details>
       <div className="rd-cta rd-cta-col">
-        <button className="pi-btn pi-btn-primary pi-btn-lg rd-send" disabled={!st.reviewed} onClick={onSend}><Icon name="fax" /> Send fake fax</button>
-        <div className="pi-muted">Fax transport is simulated. Nothing is sent to {d.practice}.</div>
+        <button className={`pi-btn ${live ? "" : "pi-btn-primary pi-btn-lg"} rd-send`} disabled={!st.reviewed} onClick={onSend}><Icon name="fax" /> {live ? "Run a SIMULATED send instead" : "Send SIMULATED fax"}</button>
+        <div className="pi-muted">{live ? "Simulated: nothing is transmitted and SRFax is not called." : <>SIMULATED send. Real providers are never faxed — nothing is sent to {d.practice} and SRFax is not invoked.</>}</div>
+      </div>
+    </section>
+  );
+}
+
+// ── CONTROLLED LIVE FAX TEST (synthetic destination only) ──────────────────
+
+function LiveSendPanel({ scenario, approved, onSendLive }: { scenario: Scenario; approved: boolean; onSendLive: () => void }) {
+  const [cfg, setCfg] = useState<boolean | null>(null);
+  const [key, setKey] = useState(getDemoKey() ?? "");
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => { liveFaxConfig().then((c) => setCfg(c.configured)); }, []);
+  const hasKey = Boolean(getDemoKey());
+  return (
+    <div className="rd-card rd-livebox">
+      <div className="rd-live-title"><Icon name="fax" /> CONTROLLED LIVE FAX TEST</div>
+      <div className="rd-controlled-labels">{CONTROLLED.labels.map((l) => <span key={l}>{l}</span>)}</div>
+      <ul className="rd-live-facts">
+        <li>Sends ONE real fax through SRFax to the controlled number <strong className="pi-mono">{CONTROLLED.fax}</strong> — the only number the server will dial.</li>
+        <li>The fax is a synthetic test document built on the server from the canned scenario “{scenario.title}”. Edits made in Prepare are not transmitted, so no free text (and no real patient information) can reach the fax.</li>
+        <li>Every page is marked SYNTHETIC TEST REFERRAL · NO REAL PATIENT INFORMATION · NOT FOR CLINICAL USE.</li>
+        <li>SRFax credentials stay on the server. A failure is shown as a failure.</li>
+      </ul>
+      {cfg === null ? <div className="pi-muted"><span className="pi-spinner" /> Checking the fax service…</div>
+        : !cfg ? <div className="rd-live-off"><Icon name="alert" size={14} /> SRFax is not configured on this server, so the live test is unavailable. The simulated send below still works.</div>
+        : (
+          <>
+            {!hasKey && (
+              <form className="pi-keyform rd-key" onSubmit={(e) => { e.preventDefault(); setDemoKey(key); setKey(key.trim()); }}>
+                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Demo access key" aria-label="Demo access key" />
+                <button className="pi-btn" type="submit">Save key</button>
+              </form>
+            )}
+            <label className="rd-approve">
+              <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
+              <span>Send one real synthetic test fax to {CONTROLLED.fax}.</span>
+            </label>
+            <button className="pi-btn pi-btn-primary pi-btn-lg rd-send-live" disabled={!approved || !confirm || !getDemoKey()} onClick={onSendLive}><Icon name="fax" /> Send CONTROLLED LIVE FAX TEST</button>
+          </>
+        )}
+    </div>
+  );
+}
+
+const LIVE_POLL_MS = 6000;
+const LIVE_POLL_MAX = 100; // ~10 minutes, then manual refresh
+
+function LiveFaxStep({ st, live, patient, set, onRestart }: { st: State; live: LiveFax; patient: ReturnType<typeof parseRecord>; set: (p: Partial<State> | ((s: State) => Partial<State>)) => void; onRestart: () => void }) {
+  const [polls, setPolls] = useState(0);
+  const d = st.destination!;
+  const done = liveDone(live);
+  const refresh = () => {
+    if (!live.faxId) return;
+    const id = live.faxId;
+    liveFaxStatus(id).then((r) => set((s) => (s.live?.faxId === id ? { live: applyStatus(s.live, r) } : {})));
+  };
+  useEffect(() => {
+    if (!live.faxId || done || polls >= LIVE_POLL_MAX) return;
+    const t = setTimeout(() => { refresh(); setPolls((n) => n + 1); }, polls === 0 ? 1500 : LIVE_POLL_MS);
+    return () => clearTimeout(t);
+  }, [live.faxId, done, polls, live.lastCheckedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ev = operationalEvidence(live);
+  const s = live.status;
+  const title = live.phase === "submitting" ? "Submitting to SRFax…" : live.phase === "error" ? "Not sent" : live.phase === "failed" ? "SRFax: Failed" : live.phase === "sent" ? "SRFax: Sent" : `SRFax: ${s?.sentStatus ?? "Submitted"}`;
+  const workflow = [
+    { at: st.times.started, title: "Patient", detail: `${patient.name} · synthetic` },
+    { at: st.times.selected, title: "Destination", detail: `${d.provider} — SYNTHETIC TEST PROVIDER · ${d.fax}` },
+    { at: st.times.prepared, title: "Referral", detail: "Synthetic test referral prepared" },
+    { at: st.times.reviewed, title: "Review", detail: "Approved; one live test fax confirmed" },
+  ];
+
+  return (
+    <section className="rd-narrow">
+      <div className="rd-head">
+        <div className="rd-kicker">Step 6 · CONTROLLED LIVE FAX TEST <span className="rd-live-tag"><span className="rd-live-dot" /> Real SRFax transmission</span></div>
+        <h1>{title}</h1>
+        <p>To {CONTROLLED.name} (synthetic) · <span className="pi-mono">{live.to}</span> · reference <span className="pi-mono">{live.reference}</span>{live.faxId && <> · SRFax FaxDetailsID <span className="pi-mono">{live.faxId}</span></>}</p>
+      </div>
+
+      <div className={`rd-card rd-fax rd-fax-${live.phase === "sent" ? "delivered" : live.phase === "failed" || live.phase === "error" ? "failed" : "sending"}`}>
+        <ol className="rd-fax-steps rd-live-events">
+          {live.events.map((e, i) => (
+            <li key={i} className={`rd-done ${/Failed|Not submitted/.test(e.label) ? "rd-bad" : ""}`}>
+              <span className="rd-fax-dot"><Icon name={/Failed|Not submitted/.test(e.label) ? "x" : "check"} size={13} /></span>
+              <span><strong>{e.label}</strong> <span className="pi-muted">· {time(e.at)} · {e.detail}</span></span>
+            </li>
+          ))}
+          {!done && <li className="rd-now"><span className="rd-fax-dot"><span className="pi-spinner" /></span>{live.phase === "submitting" ? "Waiting for SRFax to accept the fax" : "Waiting for SRFax to report a final status"}</li>}
+        </ol>
+        {live.error && <div className="rd-live-err"><Icon name="alert" size={14} /> {live.error}</div>}
+        {live.faxId && (
+          <div className="rd-live-poll pi-muted">
+            {live.lastCheckedAt ? <>Last checked with SRFax Get_FaxStatus at {time(live.lastCheckedAt)}.</> : "Status not checked yet."}
+            {!done && polls >= LIVE_POLL_MAX && " Automatic checks stopped."} <button className="pi-link" onClick={refresh}>Check now</button>
+          </div>
+        )}
+      </div>
+
+      {s && (
+        <div className="rd-card rd-hook">
+          <div className="rd-hook-head"><span className="rd-live-tag"><span className="rd-live-dot" /> SRFax Get_FaxStatus — real</span><span className="pi-mono pi-muted">FaxDetailsID {live.faxId}</span></div>
+          <dl className="rd-hook-grid">
+            <dt>SentStatus</dt><dd className={s.phase === "sent" ? "pi-good" : s.phase === "failed" ? "pi-bad" : ""}>{s.sentStatus || "—"}</dd>
+            <dt>To</dt><dd className="pi-mono">{s.toFaxNumber ?? live.to}</dd>
+            <dt>Queued</dt><dd>{s.dateQueued ?? "—"}</dd>
+            <dt>Sent</dt><dd>{s.dateSent ?? "—"}</dd>
+            <dt>Pages</dt><dd>{s.pages ?? "—"}</dd>
+            <dt>Duration</dt><dd>{s.duration != null ? `${s.duration}s` : "—"}</dd>
+            <dt>ErrorCode</dt><dd>{s.errorCode ?? "—"}</dd>
+          </dl>
+          <details className="rd-raw"><summary>Status record</summary><pre>{JSON.stringify(s, null, 2)}</pre></details>
+          <div className="pi-muted rd-fine">SRFax dates are in the SRFax account's timezone.</div>
+        </div>
+      )}
+
+      <div className="rd-card rd-opev">
+        <div className="rd-card-label">Operational fax evidence — separate from provider evidence</div>
+        <p><strong>{ev.claim}</strong></p>
+        <p className="pi-muted">This does not establish: {ev.notProven.join("; ")}. It changes no provider verification, destination confidence or referral-fit result.</p>
+      </div>
+
+      <div className="rd-card">
+        <div className="rd-card-label">Workflow</div>
+        <ol className="rd-tl">
+          {workflow.map((it) => (
+            <li key={it.title} className="rd-tl-item">
+              <span className="rd-tl-dot" />
+              <div className="rd-tl-body"><div className="rd-tl-title">{it.title}</div><div className="rd-tl-detail">{it.detail}</div></div>
+              <span className="rd-tl-time">{time(it.at)}</span>
+            </li>
+          ))}
+          <li className="rd-tl-item rd-tl-real">
+            <span className="rd-tl-dot" />
+            <div className="rd-tl-body"><div className="rd-tl-title">CONTROLLED LIVE FAX TEST <em className="rd-real-tag">Real SRFax</em></div><div className="rd-tl-detail">{title}</div></div>
+            <span className="rd-tl-time">{time(live.submittedAt)}</span>
+          </li>
+        </ol>
+      </div>
+
+      <div className="rd-end">
+        <button className="pi-btn" onClick={onRestart}><Icon name="refresh" /> Start another referral</button>
       </div>
     </section>
   );
@@ -531,7 +689,7 @@ function SendStep({ st, set, onRetry, onAlternate, onTimeline }: { st: State; se
   return (
     <section className="rd-narrow">
       <div className="rd-head">
-        <div className="rd-kicker">Step 6 · Send fax <span className="rd-sim-tag">Simulated transport</span></div>
+        <div className="rd-kicker">Step 6 · SIMULATED send <span className="rd-sim-tag">Simulated transport — nothing transmitted</span></div>
         <h1>{tx.status === "delivered" ? "Delivered" : tx.status === "failed" ? "Fax failed" : "Sending referral…"}</h1>
         <p>To {d.practice} · <span className="pi-mono">{d.fax}</span> · {tx.pages} pages · <span className="pi-mono">{tx.id}</span></p>
       </div>
@@ -629,7 +787,7 @@ function TimelineStep({ st, patient, scenario, onRespond, onRestart }: { st: Sta
     { at: st.times.prepared, title: "Referral prepared", detail: attLabels.length ? `${attLabels.join(" + ")} attached` : "No attachments" },
     { at: st.times.reviewed, title: "Human reviewed", detail: "Referral approved by the audiologist" },
     ...st.failed.map((f) => ({ at: f.completedAt, title: "Fax failed", detail: `${f.id} · ${f.destination.practice} · no answer`, tone: "bad" as const })),
-    { at: tx.createdAt, title: "Fax sent", detail: <span className="pi-mono">{tx.id}</span>, tone: "sim" },
+    { at: tx.createdAt, title: "SIMULATED send", detail: <span className="pi-mono">{tx.id}</span>, tone: "sim" },
     { at: tx.completedAt, title: "Fax delivered", detail: `${tx.pages} pages · simulated provider confirmation`, tone: "sim" },
   ];
   if (inbound) items.push({ at: inbound.receivedAt, title: "Response received", detail: `Appointment scheduled · ${fmtAppt(inbound.appointment)}`, tone: "ai" });

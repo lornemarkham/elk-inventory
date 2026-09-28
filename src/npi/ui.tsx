@@ -120,7 +120,7 @@ export interface Check { state: "ok" | "unknown" | "bad"; label: string }
 
 const nonFederal = (fams: SourceFamily[]) => fams.filter((f) => f !== "federal" && f !== "aggregator");
 
-export function destinationChecks(o: { active: boolean; loc: PracticeLocation; license: LicenseCheck | null; researched: boolean; specialtyCorroborated: boolean; isOrg: boolean }): Check[] {
+export function destinationChecks(o: { active: boolean; loc: PracticeLocation; license: LicenseCheck | null; researched: boolean; specialtyCorroborated: boolean; specialtyDifferent?: boolean; isOrg: boolean }): Check[] {
   const { loc } = o;
   const out: Check[] = [];
   out.push(o.active ? { state: "ok", label: "Active NPI" } : { state: "bad", label: "NPI deactivated" });
@@ -132,7 +132,7 @@ export function destinationChecks(o: { active: boolean; loc: PracticeLocation; l
     else if (/^active/i.test(best.status)) out.push({ state: lic.match === "exact" ? "ok" : "unknown", label: `WA licence ${best.status.toLowerCase()}${lic.match === "exact" ? "" : " (name match)"}` });
     else out.push({ state: "bad", label: `WA licence ${best.status.toLowerCase()}` });
   }
-  out.push(o.specialtyCorroborated ? { state: "ok", label: "Specialty corroborated" } : { state: "ok", label: "Specialty in NPI taxonomy" });
+  out.push(o.specialtyDifferent ? { state: "bad", label: "Current specialty differs from NPI" } : o.specialtyCorroborated ? { state: "ok", label: "Specialty corroborated" } : { state: "ok", label: "Specialty in NPI taxonomy" });
   const locOk = nonFederal(loc.families).length > 0;
   if (loc.status === "former") out.push({ state: "bad", label: "Provider has left this location" });
   else if (loc.status === "possibly_stale") out.push({ state: "bad", label: "Location may be stale" });

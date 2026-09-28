@@ -276,7 +276,7 @@ function DestinationRow({ r, ctx, onOpen }: { r: NearbyResult; ctx: SearchContex
   const provider = view?.providerScore ?? r.provider;
   const checks = destinationChecks({
     active: r.status === "Active", loc: best, license: view?.license ?? r.license, researched: Boolean(view?.research),
-    specialtyCorroborated: Boolean(view?.research?.specialty.value), isOrg: r.enumerationType === "Organization",
+    specialtyCorroborated: Boolean(view?.research?.specialty.value), specialtyDifferent: view?.research?.specialty.status === "different", isOrg: r.enumerationType === "Organization",
   });
   const supported = view?.research ? view.locations.filter((l) => l.status !== "former" && l.origin !== "npi").length : 0;
 

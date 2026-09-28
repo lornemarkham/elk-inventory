@@ -54,13 +54,13 @@ const RAW = {
 const provider = (): ProviderDetail => normalize(structuredClone(RAW), "CMS NPPES API");
 
 const S = (id: string, url: string) => ({ id, url, title: "", domain: new URL(url).hostname.replace(/^www\./, "") });
-const meta = (id: string, family: string, extra: Record<string, unknown> = {}) => ({ id, name: id, family, aboutThisProvider: true, currentness: "current", summary: "", ...extra });
+const meta = (id: string, family: string, extra: Record<string, unknown> = {}) => ({ id, name: id, family, aboutDifferentProvider: false, currentness: "current", summary: "", ...extra });
 const USAGE = { researchModel: "m", extractModel: "m", searchCalls: 1, inputTokens: 0, outputTokens: 0, durationMs: 0 };
 const emptyParsed = () => ({
   summary: "s",
   relationship: { kind: "npi_current", explanation: "e", sourceIds: ["S1"] },
   identity: { confirmed: true, conflict: false, note: "", sourceIds: ["S1"] },
-  specialty: { value: "Otolaryngology", sourceIds: ["S1"] },
+  specialty: { value: "Otolaryngology", status: "same", sourceIds: ["S1"] },
   affiliations: [{ name: "UW Medicine", current: "current", sourceIds: ["S1"] }],
   sources: [] as unknown[],
   locations: [] as unknown[],
@@ -170,7 +170,7 @@ test("streetKey ignores suite, directionals and ordinal formatting", () => {
 test("provider confidence: registry + licence baseline, then research", () => {
   const base = { active: true, specialtyMatch: { matched: true, label: "ENT", requested: true }, licenseStateSupported: true, practiceState: "WA", isOrg: false, npiUpdatedYearsAgo: 1 };
   assert.equal(scoreProvider({ ...base, license: WA_ACTIVE, research: null }).score, 65);
-  const researched = { identity: { value: "x", confidence: 80, basis: "", sourceIds: ["S1"], confirmed: true, conflict: false }, specialty: { value: "ENT", confidence: 80, basis: "", sourceIds: ["S1"] }, affiliations: [{ value: "UW", sourceIds: ["S1"], current: "current" as const, families: ["first_party" as const] }], webLicense: [], sources: [{ id: "S1", family: "first_party" as const }] as ReferralResearch["sources"] };
+  const researched = { identity: { value: "x", confidence: 80, basis: "", sourceIds: ["S1"], confirmed: true, conflict: false }, specialty: { value: "ENT", status: "same" as const, confidence: 80, basis: "", sourceIds: ["S1"] }, affiliations: [{ value: "UW", sourceIds: ["S1"], current: "current" as const, families: ["first_party" as const] }], webLicense: [], sources: [{ id: "S1", family: "first_party" as const }] as ReferralResearch["sources"] };
   assert.equal(scoreProvider({ ...base, license: WA_ACTIVE, research: researched }).score, 100);
   const conflict = { ...researched, identity: { ...researched.identity, confirmed: false, conflict: true } };
   assert.ok(scoreProvider({ ...base, license: WA_ACTIVE, research: conflict }).score < 70);
@@ -218,7 +218,7 @@ test("location-specific faxes, referral vs generic fax, multiple locations kept 
 
 test("unsupported claims are filtered out", async () => {
   const parsed = emptyParsed();
-  parsed.sources = [meta("S1", "first_party"), meta("S2", "first_party", { aboutThisProvider: false }), meta("S7", "first_party")];
+  parsed.sources = [meta("S1", "first_party"), meta("S2", "first_party", { aboutDifferentProvider: true }), meta("S7", "first_party")];
   parsed.locations = [
     loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], phones: [{ number: "206-111-2222", label: null, sourceIds: ["S1"] }], faxes: [{ number: "206-333-4444", label: "Fax", faxKind: "general", sourceIds: ["S9"] }] }),
     loc({ name: "Other person's clinic", line1: "9 Elsewhere Rd", sourceIds: ["S2"], phones: [], faxes: [] }),
@@ -342,4 +342,50 @@ test("demo guard: per-IP rate limit on fresh research", () => {
   assert.equal(takeResearchSlot("9.9.9.9", t), false);
   assert.equal(takeResearchSlot("8.8.8.8", t), true, "other clients unaffected");
   assert.equal(takeResearchSlot("9.9.9.9", t + 3600_001), true, "window slides");
+});
+
+// ── Fixes from the live Seattle acceptance run ─────────────────────────────
+test("clinic pages are evidence; only a different person is dropped; VA is first-party", async () => {
+  assert.equal(classifyFamily("https://www.va.gov/puget-sound-health-care/", "va.gov", "federal").family, "first_party");
+  const parsed = emptyParsed();
+  parsed.sources = [meta("S1", "first_party"), meta("S2", "first_party")]; // S2: clinic page not naming the provider
+  parsed.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1", "S2"], phones: [], faxes: [{ number: "206-598-6611", label: "fax", faxKind: "general", sourceIds: ["S2"] }] })];
+  const r = await finalize(parsed, [S("S1", "https://www.uwmedicine.org/bios/x"), S("S2", "https://www.uwmedicine.org/locations/ent")], "fax 206-598-6611");
+  assert.ok(r.locations[0].faxes.some((f) => f.digits === "2065986611"));
+});
+
+test("specialty that differs from the NPI taxonomy lowers provider and referral confidence", async () => {
+  const parsed = emptyParsed();
+  parsed.specialty = { value: "Aesthetic medicine", status: "different", sourceIds: ["S1"] };
+  parsed.sources = [meta("S1", "first_party")];
+  parsed.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"] })];
+  const r = await finalize(parsed, [S("S1", "https://skin.example.com")], "");
+  assert.equal(r.specialty.status, "different");
+  const view = await withFetch(() => null, () => buildView(provider(), r, { origin: null, radiusMi: null, specialty: resolveSpecialty("ENT"), license: WA_ACTIVE }));
+  assert.ok(view.providerScore.items.some((i) => i.kind === "fail" && i.label.startsWith("Sources show a different current specialty")));
+  assert.ok(view.locations[0].referral.items.some((i) => i.points === -25));
+});
+
+test("NPI address without a street merges with the same-ZIP site that shares its phone", async () => {
+  const raw = structuredClone(RAW);
+  raw.addresses[0] = { ...raw.addresses[0], address_1: "UNIVERSITY OF WASHINGTON MEDICAL CTR", postal_code: "981956161", telephone_number: "206-598-4022", fax_number: "" };
+  const parsed = emptyParsed();
+  parsed.sources = [meta("S1", "first_party")];
+  parsed.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], phones: [{ number: "206-598-4022", label: null, sourceIds: ["S1"] }] })];
+  const r = await finalize(parsed, [S("S1", "https://www.uwmedicine.org/x")], "206-598-4022", normalize(raw, "CMS NPPES API"));
+  assert.equal(r.locations.length, 1);
+  assert.equal(r.locations[0].origin, "both");
+});
+
+test("destinations inside the search radius rank before stronger ones outside it", async () => {
+  const parsed = emptyParsed();
+  parsed.sources = [meta("S1", "first_party")];
+  parsed.locations = [
+    loc({ name: "Far", line1: "1 Cranch St", city: "Quincy", state: "MA", postalCode: "02169", sourceIds: ["S1"], phones: [{ number: "617-773-1000", label: null, sourceIds: ["S1"] }], faxes: [{ number: "617-773-2000", label: "Referral fax", faxKind: "referral", sourceIds: ["S1"] }] }),
+    loc({ name: "Near", line1: "1560 N 115th St", postalCode: "98133", sourceIds: ["S1"] }),
+  ];
+  const r = await finalize(parsed, [S("S1", "https://x.org")], "617-773-1000 617-773-2000");
+  const view = await withFetch(() => null, () => buildView(provider(), r, { origin: { lat: 47.6849, lon: -122.2968 }, radiusMi: 10, specialty: null, license: null }));
+  assert.equal(view.locations[0].inRadius, true);
+  assert.equal(view.locations.find((l) => l.name === "Far")!.inRadius, false);
 });

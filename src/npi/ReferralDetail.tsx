@@ -193,7 +193,7 @@ function LocationCard({ loc, view, rank }: { loc: PracticeLocation; view: Referr
   const sources = research?.sources ?? [];
   const checks = destinationChecks({
     active: view.provider.status === "Active", loc, license: view.license, researched: Boolean(research),
-    specialtyCorroborated: Boolean(research?.specialty.value), isOrg: view.provider.enumerationType === "Organization",
+    specialtyCorroborated: Boolean(research?.specialty.value), specialtyDifferent: research?.specialty.status === "different", isOrg: view.provider.enumerationType === "Organization",
   });
   const confirmedBy = loc.sourceIds.map((id) => sources.find((s) => s.id === id)).filter((s): s is EvidenceSource => Boolean(s) && s!.family !== "aggregator");
   const fax = loc.bestFax;

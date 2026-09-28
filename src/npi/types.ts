@@ -257,7 +257,7 @@ export interface ReferralResearch {
   summary: string;
   relationship: { kind: NpiRelationship; explanation: string; sourceIds: string[] };
   identity: FieldConfidence & { confirmed: boolean; conflict: boolean };
-  specialty: FieldConfidence;
+  specialty: FieldConfidence & { status: "same" | "different" | "unknown" };
   affiliations: (Claim & { current: "current" | "former" | "unknown"; families: SourceFamily[] })[];
   organization: FieldConfidence;
   locations: PracticeLocation[]; // NPI + researched, merged, scored

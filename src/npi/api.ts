@@ -63,7 +63,7 @@ export async function streamResearch(npi: string, ctx: SearchContext | null, fre
 // Research is cached per NPI (it doesn't depend on the search origin) so repeat
 // demos don't spend OpenAI credits; the server re-scores it for each origin.
 
-const RKEY = (npi: string) => `npi-research:v2:${npi}`;
+const RKEY = (npi: string) => `npi-research:v3:${npi}`;
 
 export function loadResearch(npi: string): ReferralResearch | null {
   try {

@@ -93,6 +93,7 @@ export interface LocationContext {
   faxConflict: boolean;
   npiFaxElsewhere: string | null; // this address's NPI fax is published for another location
   npiUpdatedYearsAgo: number | null;
+  specialtyMismatch?: string | null; // research says the provider now practises something else
 }
 
 // ── Referral confidence (per location) ───────────────────────────────────────
@@ -133,6 +134,8 @@ export function scoreReferral(loc: PracticeLocation, ctx: LocationContext): Conf
     const official = nonFederal(fax.families).includes("first_party");
     add("pass", official ? `Official source labels it a referral fax ("${fax.label}")` : `A ${FAMILY_LABEL[nonFederal(fax.families)[0] ?? "independent"].toLowerCase()} labels it a referral fax ("${fax.label}")`, official ? 15 : 8);
   } else if (fax) add("unknown", "Referral-specific fax not established — this is a fax for the location, not a confirmed referral intake line", 0);
+
+  if (ctx.specialtyMismatch) add("fail", `Provider's current practice appears to be ${ctx.specialtyMismatch}, not the NPI specialty — confirm before referring`, -25);
 
   // 5. Instructions + freshness.
   if (loc.referralInstructions) add("pass", "Referral instructions / form found", 5);
@@ -191,7 +194,8 @@ export function scoreProvider(s: ProviderSignals): ConfidenceScore {
     else add("unknown", "Identity not independently confirmed on the web", 0);
 
     const spFams = nonFederal(sourceFamiliesOf(r.specialty.sourceIds, r.sources));
-    if (r.specialty.value && spFams.length) add("pass", `Specialty corroborated (${r.specialty.value})`, 10);
+    if (r.specialty.status === "different") add("fail", `Sources show a different current specialty: ${r.specialty.value}`, -25);
+    else if (r.specialty.value && spFams.length) add("pass", `Specialty corroborated (${r.specialty.value})`, 10);
     else add("unknown", "Specialty not corroborated beyond the NPI record", 0);
 
     const aff = r.affiliations.find((a) => a.current === "current" && a.families.includes("first_party"));

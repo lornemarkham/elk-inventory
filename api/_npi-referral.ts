@@ -79,8 +79,9 @@ function sameAddress(a: { line1: string; postalCode: string; city: string }, b: 
 
 // ── Source families ──────────────────────────────────────────────────────────
 
-const AGGREGATOR = /(npiprofile|npidb|hipaaspace|npino|opennpi|npi-lookup|npinumberlookup|npiregistry\.us|nppes\.us|findnpi|npi\.report|zoominfo|bloomberg|healthgrades|vitals\.com|webmd|sharecare|wellness\.com|caredash|md\.com|ratemds|doctor\.com|health\.usnews|usnews\.com|castleconnolly|medicarelist|healthcare4ppl|providerdata|opengovus|buzzfile|mapquest|yellowpages|yelp|manta\.com|birdeye|chamberofcommerce)/i;
-const FEDERAL = /(^|\.)(cms\.gov|medicare\.gov|hhs\.gov|va\.gov|nih\.gov)$/i;
+const AGGREGATOR = /(npiprofile|npichecker|npir\.org|healthprovidersdata|npidb|hipaaspace|npino|opennpi|npi-lookup|npinumberlookup|npiregistry\.us|nppes\.us|findnpi|npi\.report|zoominfo|bloomberg|healthgrades|vitals\.com|webmd|sharecare|wellness\.com|caredash|md\.com|ratemds|doctor\.com|health\.usnews|usnews\.com|castleconnolly|medicarelist|healthcare4ppl|providerdata|opengovus|buzzfile|mapquest|yellowpages|yelp|manta\.com|birdeye|chamberofcommerce)/i;
+const FEDERAL = /(^|\.)(cms\.gov|medicare\.gov|hhs\.gov)$/i;
+const FEDERAL_CARE = /(^|\.)(va\.gov|ihs\.gov)$/i; // federal health systems are first-party for their own facilities
 const PAYER = /(uhc\.com|uhcprovider|myuhc|aetna\.com|cigna\.com|humana\.com|anthem\.com|bcbs|bluecross|blueshield|premera\.com|regence\.com|molinahealthcare|coordinatedcarehealth|wellcare|ambetter|amerigroup|centene|healthnet|hioscar|oscar\.com|harvardpilgrim|tuftshealthplan|point32health|pacificsource|modahealth|healthplans\.providence|kaiserpermanente\.org\/.*provider|carefirst|emblemhealth|highmark|wellpoint|caresource|medica\.com|priorityhealth|geisinger.*plan|mass\.gov\/.*masshealth)/i;
 const PROFESSIONAL = /(entnet\.org|audiology\.org|asha\.org|abms\.org|certificationmatters|aao-hns|triological|ama-assn|doximity\.com|abpn\.org|aafprs)/i;
 const MODEL_FAMILIES: SourceFamily[] = ["first_party", "payer", "professional", "independent", "aggregator", "state", "federal"];
@@ -89,6 +90,7 @@ export function classifyFamily(url: string, domain: string, modelFamily: string 
   const full = `${domain}${(() => { try { return new URL(url).pathname; } catch { return ""; } })()}`;
   if (AGGREGATOR.test(domain)) return { family: "aggregator", reason: "Domain rule: known NPI mirror / aggregator directory" };
   if (FEDERAL.test(domain)) return { family: "federal", reason: "Domain rule: federal .gov" };
+  if (FEDERAL_CARE.test(domain)) return { family: "first_party", reason: "Domain rule: federal health system (VA / IHS) site" };
   if (/\.gov$|\.state\.[a-z]{2}\.us$/i.test(domain)) return { family: "state", reason: "Domain rule: state / local government" };
   if (PAYER.test(full)) return { family: "payer", reason: "Domain rule: insurer / plan directory" };
   if (PROFESSIONAL.test(domain)) return { family: "professional", reason: "Domain rule: professional / specialty body" };
@@ -177,7 +179,7 @@ Find, with a source URL for every fact:
 1. Is this the same provider (name, credentials, specialty)? Watch for different people with the same name.
 2. Current practice / clinic / health-system affiliation(s). Note former affiliations as former.
 3. EVERY current physical practice location — a provider often works at several sites of one health system. List each location separately with its own street address.
-4. Specialty / subspecialty as stated by the practice.
+4. Specialty / subspecialty as stated by the practice — and say clearly if the provider now practises something different from the NPI taxonomy.
 5. For EACH location: the phone number and the fax number, and the EXACT label the source puts next to each number, quoted verbatim (e.g. "Referral Fax:", "Fax:", "Scheduling fax", "Clinic fax"). Never describe a fax as a referral fax unless the source literally says so.
 6. Referral instructions or referral forms, if the practice publishes them.
 7. Whether new patients / referrals are accepted — only if a source explicitly says so.
@@ -185,6 +187,8 @@ Find, with a source URL for every fact:
 9. State licence information, if you find it on a state licensing site.
 10. Payer / insurer provider-directory listings, if any (name the insurer).
 11. Anything stale or conflicting: moved practices, renamed or acquired practices, numbers that differ between sources, locations that only the NPI record lists.
+
+Clinic, department and location pages count as evidence for a site's address, phone and fax even when they don't name the provider — use them once another source ties the provider to that site.
 
 Source preference: 1) the practice's or health system's own pages, 2) insurer directories, 3) state licensing, 4) specialty societies, 5) other reputable sources. NPI mirror sites (npiprofile, npidb, hipaaspace, npino …) and generic doctor directories (Healthgrades, Vitals, WebMD …) often just copy NPPES — say when a fact comes ONLY from them.
 
@@ -197,11 +201,12 @@ const EXTRACT_PROMPT = `You convert a web-research report about a healthcare pro
 Strict rules:
 - Use ONLY facts stated in the research report. Never invent numbers, addresses, names or URLs.
 - Every item must cite source ids from the numbered list (e.g. "S3"). No source id → omit the item.
-- sources: one entry per source id you use. aboutThisProvider=false if the page is about a different person/organization. family: first_party (the practice, clinic, hospital or health system's own site), payer (insurer / health-plan directory), professional (specialty society, board, professional network), state (state licensing / government), federal (CMS / NPPES / federal government), aggregator (NPI mirrors and doctor directories that copy NPPES, e.g. Healthgrades, Vitals, WebMD, npiprofile), independent (anything else reputable). currentness: "current" if the page is evidently maintained/current, "possibly_stale" if it looks old or contradicts newer sources, else "unknown".
+- sources: one entry per source id you use. aboutDifferentProvider=true ONLY when the page describes a different person or organization that merely shares a name. Clinic, department, location, "find a doctor" and insurer-directory pages that give the address/phone/fax of a site where this provider practises are NOT different providers, even if the page does not name the provider. family: first_party (the practice, clinic, hospital or health system's own site), payer (insurer / health-plan directory), professional (specialty society, board, professional network), state (state licensing / government), federal (CMS / NPPES / federal government), aggregator (ONLY NPI mirrors and multi-provider doctor directories that copy NPPES, e.g. Healthgrades, Vitals, WebMD, npiprofile — a practice's own website is first_party however small), independent (anything else reputable). currentness: "current" if the page is evidently maintained/current, "possibly_stale" if it looks old or contradicts newer sources, else "unknown".
 - locations: one per distinct physical site. Put each phone and fax under the location the SOURCE ties it to. Do not copy a number from one location onto another.
 - faxes[].label: the verbatim label text next to the number in the source (e.g. "Referral Fax", "Fax"), or null if the report gives none. faxKind: "referral" ONLY when the label explicitly says referral; "scheduling" when it says scheduling/appointments; "office" or "general" for plain fax; "unknown" otherwise.
 - currentness per location: "current", "former" (sources say the provider left or the site closed), or "unknown".
 - relationship: how the NPI record relates to what the web shows — npi_current (web agrees with NPI locations), additional_locations (NPI correct but incomplete), npi_stale_moved (provider now practises elsewhere), successor_practice (same phone/fax but renamed/acquired practice), ambiguous_identity (cannot tell if sources are the same provider), no_evidence. Explain in one or two sentences a business user understands. Do not force a conclusion the evidence does not support.
+- specialty.value: the specialty the provider CURRENTLY practises, in six words or fewer. specialty.status: "same" if it matches the NPI taxonomy; "different" if sources show the provider now practises a different specialty than the NPI taxonomy says (e.g. an ENT now doing only aesthetics, or an audiologist registered under an ENT taxonomy); "unknown" otherwise.
 - identity.confirmed: true only if a source clearly describes this same provider. identity.conflict: true only if sources contradict the identity (e.g. different credential/specialty for the same name and place).
 - acceptingNewPatients only when a source explicitly says so.
 - conflicts: real disagreements between sources (fax numbers, addresses, practice names), each with source ids.`;
@@ -231,18 +236,18 @@ const EXTRACT_SCHEMA = {
       properties: { kind: { type: "string", enum: ["npi_current", "additional_locations", "npi_stale_moved", "successor_practice", "ambiguous_identity", "no_evidence"] }, explanation: { type: "string" }, sourceIds: ids },
     },
     identity: { type: "object", additionalProperties: false, required: ["confirmed", "conflict", "note", "sourceIds"], properties: { confirmed: { type: "boolean" }, conflict: { type: "boolean" }, note: { type: "string" }, sourceIds: ids } },
-    specialty: { type: "object", additionalProperties: false, required: ["value", "sourceIds"], properties: { value: { type: ["string", "null"] }, sourceIds: ids } },
+    specialty: { type: "object", additionalProperties: false, required: ["value", "status", "sourceIds"], properties: { value: { type: ["string", "null"] }, status: { type: "string", enum: ["same", "different", "unknown"] }, sourceIds: ids } },
     affiliations: { type: "array", items: { type: "object", additionalProperties: false, required: ["name", "current", "sourceIds"], properties: { name: { type: "string" }, current: { type: "string", enum: ["current", "former", "unknown"] }, sourceIds: ids } } },
     sources: {
       type: "array",
       items: {
         type: "object", additionalProperties: false,
-        required: ["id", "name", "family", "aboutThisProvider", "currentness", "summary"],
+        required: ["id", "name", "family", "aboutDifferentProvider", "currentness", "summary"],
         properties: {
           id: { type: "string" },
           name: { type: "string" },
           family: { type: "string", enum: MODEL_FAMILIES },
-          aboutThisProvider: { type: "boolean" },
+          aboutDifferentProvider: { type: "boolean", description: "true only if the page is about a different person/organization with a similar name" },
           currentness: { type: "string", enum: ["current", "possibly_stale", "unknown"] },
           summary: { type: "string" },
         },
@@ -394,7 +399,7 @@ export async function finalizeResearch(
 ): Promise<ReferralResearch> {
   const now = new Date().toISOString();
   const dropped: ReferralResearch["dropped"] = [];
-  const p = parsed ?? { summary: "Web research found no usable independent sources for this provider.", relationship: { kind: "no_evidence", explanation: "No web evidence was found.", sourceIds: [] }, identity: { confirmed: false, conflict: false, note: "", sourceIds: [] }, specialty: { value: null, sourceIds: [] }, affiliations: [], sources: [], locations: [], conflicts: [], licenses: [] };
+  const p = parsed ?? { summary: "Web research found no usable independent sources for this provider.", relationship: { kind: "no_evidence", explanation: "No web evidence was found.", sourceIds: [] }, identity: { confirmed: false, conflict: false, note: "", sourceIds: [] }, specialty: { value: null, status: "unknown", sourceIds: [] }, affiliations: [], sources: [], locations: [], conflicts: [], licenses: [] };
 
   // Sources: must be one web search actually returned, and about this provider.
   const meta = new Map<string, Raw>((p.sources ?? []).map((s: Raw) => [s.id, s]));
@@ -402,7 +407,7 @@ export async function finalizeResearch(
   for (const s of numbered) {
     const m = meta.get(s.id);
     if (!m) continue;
-    if (m.aboutThisProvider === false) { dropped.push({ reason: "Source is about a different provider", detail: s.domain }); continue; }
+    if (m.aboutDifferentProvider === true) { dropped.push({ reason: "Source is about a different provider", detail: s.domain }); continue; }
     const { family, reason } = classifyFamily(s.url, s.domain, m.family);
     sources.push({ id: s.id, url: s.url, title: s.title, domain: s.domain, name: m.name || s.title || s.domain, family, familyReason: reason, summary: m.summary ?? "", currentness: m.currentness ?? "unknown", researchedAt: now });
   }
@@ -473,7 +478,10 @@ export async function finalizeResearch(
   // Merge NPI locations into matching research locations; keep unmatched NPI ones.
   const locations: PracticeLocation[] = [...merged];
   for (const n of npiLocs) {
-    const match = merged.find((m) => sameAddress(m, n));
+    const noStreet = !/\d/.test(n.line1);
+    const shares = (m: PracticeLocation) => [...m.phones, ...m.faxes].some((x) => [...n.phones, ...n.faxes].some((y) => y.digits === x.digits));
+    const match = merged.find((m) => sameAddress(m, n)) ??
+      (noStreet ? merged.find((m) => m.postalCode.slice(0, 5) === n.postalCode.slice(0, 5) && shares(m)) : undefined);
     if (match) {
       match.origin = "both";
       match.npiPurpose = n.npiPurpose;
@@ -517,7 +525,7 @@ export async function finalizeResearch(
     summary: p.summary ?? "",
     relationship: { kind: relIds.length || kind === "no_evidence" ? kind : "no_evidence", explanation: p.relationship?.explanation ?? "", sourceIds: relIds },
     identity: { ...fieldFrom(identityConfirmed ? provider.name : null, identityIds, sources, { conflict: Boolean(p.identity?.conflict) }), confirmed: identityConfirmed, conflict: Boolean(p.identity?.conflict) && identityIds.length > 0 },
-    specialty: fieldFrom(specialtyIds.length ? p.specialty?.value ?? null : null, specialtyIds, sources),
+    specialty: { ...fieldFrom(specialtyIds.length ? p.specialty?.value ?? null : null, specialtyIds, sources), status: specialtyIds.length && countingFamilies(fams(specialtyIds)).length ? (p.specialty?.status ?? "unknown") : "unknown" },
     affiliations,
     organization: fieldFrom(currentAff?.value ?? null, currentAff?.sourceIds ?? [], sources),
     locations,
@@ -618,11 +626,11 @@ export async function buildView(provider: ProviderDetail, research: ReferralRese
         ? { value: fax.number, ...fieldConfidence(fax.families), sourceIds: fax.sourceIds }
         : { value: null, confidence: 0, basis: fax ? "No source labels a fax here as a referral fax" : "No fax found", sourceIds: [] },
     };
-    l.referral = scoreReferral(l, { researched: Boolean(research), firstPartyCurrent, faxConflict, npiFaxElsewhere: elsewhere ? `${elsewhere.name}, ${elsewhere.city}` : null, npiUpdatedYearsAgo: yearsOld });
+    l.referral = scoreReferral(l, { researched: Boolean(research), firstPartyCurrent, specialtyMismatch: research?.specialty.status === "different" ? research.specialty.value : null, faxConflict, npiFaxElsewhere: elsewhere ? `${elsewhere.name}, ${elsewhere.city}` : null, npiUpdatedYearsAgo: yearsOld });
   }
 
-  // Order: usable (not former) first, then referral confidence, then distance.
-  locations.sort((a, b) => Number(a.status === "former") - Number(b.status === "former") || b.referral.score - a.referral.score || (a.distanceMi ?? 1e9) - (b.distanceMi ?? 1e9));
+  // Order: usable first, then inside the search radius, then referral confidence, then distance.
+  locations.sort((a, b) => Number(a.status === "former") - Number(b.status === "former") || Number(a.inRadius === false) - Number(b.inRadius === false) || b.referral.score - a.referral.score || (a.distanceMi ?? 1e9) - (b.distanceMi ?? 1e9));
 
   const codes = provider.taxonomies.map((t) => t.code);
   const spec = o.specialty;

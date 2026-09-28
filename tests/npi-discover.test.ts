@@ -110,6 +110,14 @@ test("name alone on a fetched page is NOT identity", () => {
   assert.equal(researchFromPages(provider(), neuro, [e], ["q"], Date.now()), null);
 });
 
+test("an independent directory that prints the NPI number is treated as an NPPES copy", () => {
+  const e = corroboratePage(provider(), neuro, ORGS, page("https://somedirectory.example/p", "<p>Jane Holloway MD · NPI 1234567893 · 1560 N 115th St · 206-555-0100</p>"));
+  assert.equal(e.accepted, false);
+  assert.match(e.reason, /NPI-registry copy/);
+  const official = corroboratePage(provider(), neuro, ORGS, page("https://www.northgateneurology.com/p", "<p>Jane Holloway MD · NPI 1234567893</p>"));
+  assert.equal(official.accepted, true);
+});
+
 test("last name without first name is not a name match", () => {
   const e = corroboratePage(provider(), neuro, ORGS, page("https://x.example/p", "<p>Dr. Holloway, 206-555-0100, 1560 N 115th St</p>"));
   assert.equal(e.nameOnPage, false);

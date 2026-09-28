@@ -57,9 +57,11 @@ export async function braveSearch(query: string, opts: { country?: string; limit
   const qs = new URLSearchParams({ q: query, count: String(limit), result_filter: "web" });
   if (opts.country) qs.set("country", opts.country);
   const f = opts.fetcher ?? fetch;
+  // BRAVE_SEARCH_URL: local test harness only (a stub returning Brave-shaped url+title hits).
+  const endpoint = process.env.BRAVE_SEARCH_URL || BRAVE_URL;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await f(`${BRAVE_URL}?${qs}`, { headers: { Accept: "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": key }, signal: AbortSignal.timeout(8000) });
+      const res = await f(`${endpoint}?${qs}`, { headers: { Accept: "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": key }, signal: AbortSignal.timeout(8000) });
       // Brave's low tiers allow ~1 request/second: one polite retry on 429.
       if (res.status === 429 && attempt === 0) { await new Promise((r) => setTimeout(r, 1200)); continue; }
       if (!res.ok) return { status: "http_error", error: `Brave HTTP ${res.status}` };
@@ -242,6 +244,9 @@ export function corroboratePage(
   let accepted = false;
   let reason: string;
   if (family === "aggregator") reason = "Rejected: aggregator / NPI-mirror domain";
+  // A non-official directory that prints the NPI number is almost always a copy of
+  // NPPES, so matching it corroborates nothing (same as the existing aggregator rule).
+  else if (npiOn && family === "independent") reason = "Rejected: republishes the NPI number and is not an official, payer, society or government site — treated as an NPI-registry copy";
   else if (!named) reason = isOrg ? "Rejected: organization name not found on the page" : "Rejected: provider's first + last name not found on the page";
   else if (!identifiers.length) reason = "Rejected: name found, but no NPI-record identifier (NPI, street address, phone or fax) on the page — a name match alone is not identity";
   else { accepted = true; reason = `Accepted: name + ${identifiers.join(", ")} found on the fetched page`; }

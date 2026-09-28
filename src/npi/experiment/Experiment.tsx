@@ -181,7 +181,7 @@ function Pipeline({ stages }: { stages: ReturnType<typeof pipelineStages> }) {
   return (
     <section id="pipeline">
       <h2>The pipeline run, stage by stage</h2>
-      <p className="ex-muted"><Kind k="HUMAN" /> a person decided · <Kind k="DET" /> fixed code rules · <Kind k="EXTERNAL" /> an outside data source · <Kind k="AI" /> a model’s output. “DET over cached AI” means code re-scoring saved model output: no model runs, but the inputs are AI judgements. Times for server sub-stages come from the <code>trace</code> field of <code>/api/npi-nearby</code>, and Brave/fetch times from <code>log.timings</code>. Stage 1 duration includes its parallel work.</p>
+      <p className="ex-muted"><Kind k="HUMAN" /> a person decided · <Kind k="DET" /> fixed code rules · <Kind k="EXTERNAL" /> an outside data source · <Kind k="AI" /> a model’s output. “DET over cached AI” means code re-scoring saved model output: no model runs, but the inputs are AI judgements. Times for server sub-stages come from the <code>trace</code> field of <code>/api/npi-nearby</code>, and Brave/fetch times from <code>log.timings</code>. For per-provider stages (saved-AI re-scoring, Brave, fetches) the time is the <strong>sum across providers</strong>; the product runs them 2–4 at a time, so wall time is lower. Server sub-stage times depend on per-edge-instance caches: in the recorded run the geocoder took ~2 ms because a request moments earlier had warmed it. The cold figure measured just before was ~2.1 s geocoding and ~4 s licence lookup.</p>
       <table className="ex-table">
         <thead><tr><th>#</th><th>Stage</th><th>Type</th><th>Source</th><th>In → out</th><th>Output</th><th>Time</th><th>Cost</th><th>Failures / refusals</th></tr></thead>
         <tbody>

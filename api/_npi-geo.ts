@@ -20,17 +20,18 @@ export interface SpecialtyDef {
   nppesQuery: string; // taxonomy_description sent to NPPES
   codes: string[]; // taxonomy code prefixes that qualify
   aliases: RegExp;
+  licenseTypes?: RegExp; // state credential types that fit this specialty
 }
 
 export const SPECIALTY_DEFS: SpecialtyDef[] = [
-  { key: "otology", label: "Otology & Neurotology", nppesQuery: "Otolaryngology", codes: ["207YX0901X"], aliases: /^(otolog(y|ists?)|neurotolog(y|ists?)|otology (and|&) neurotology|ear surgeons?)$/i },
-  { key: "peds-ent", label: "Pediatric Otolaryngology", nppesQuery: "Otolaryngology", codes: ["207YP0228X"], aliases: /^(pediatric (ent|otolaryngology|otolaryngologists?)|peds ent)$/i },
-  { key: "ent", label: "Otolaryngology (ENT)", nppesQuery: "Otolaryngology", codes: ["207Y"], aliases: /^(ent|e\.n\.t\.?|otolaryngolog(y|ists?)|otorhinolaryngolog(y|ists?)|ear,? nose (and|&) throat( doctors?| specialists?)?|ent \/ otolaryngology|otolaryngology \(ent\))$/i },
-  { key: "audiology", label: "Audiologist", nppesQuery: "Audiologist", codes: ["231H", "237600000X"], aliases: /^(audiolog(y|ists?)|hearing (doctors?|tests?|testing))$/i },
-  { key: "hearing-aid", label: "Hearing Instrument Specialist", nppesQuery: "Hearing Instrument Specialist", codes: ["237700000X"], aliases: /^(hearing (aid|instrument) (specialists?|dispensers?|fitters?)|hearing aids?)$/i },
-  { key: "slp", label: "Speech-Language Pathologist", nppesQuery: "Speech-Language Pathologist", codes: ["235Z"], aliases: /^(speech(-| )language patholog(y|ists?)|slp|speech therap(y|ists?))$/i },
-  { key: "neurology", label: "Neurology", nppesQuery: "Neurology", codes: ["2084N0400X", "2084N0402X", "2084N0008X"], aliases: /^(neurolog(y|ists?))$/i },
-  { key: "allergy", label: "Allergy & Immunology", nppesQuery: "Allergy", codes: ["207K"], aliases: /^(allerg(y|ists?)|allergy (and|&) immunology|immunolog(y|ists?))$/i },
+  { key: "otology", label: "Otology & Neurotology", nppesQuery: "Otolaryngology", codes: ["207YX0901X"], aliases: /^(otolog(y|ists?)|neurotolog(y|ists?)|otology (and|&) neurotology|ear surgeons?)$/i, licenseTypes: /(Physician And Surgeon|Osteopathic Physician)/i },
+  { key: "peds-ent", label: "Pediatric Otolaryngology", nppesQuery: "Otolaryngology", codes: ["207YP0228X"], aliases: /^(pediatric (ent|otolaryngology|otolaryngologists?)|peds ent)$/i, licenseTypes: /(Physician And Surgeon|Osteopathic Physician)/i },
+  { key: "ent", label: "Otolaryngology (ENT)", nppesQuery: "Otolaryngology", codes: ["207Y"], aliases: /^(ent|e\.n\.t\.?|otolaryngolog(y|ists?)|otorhinolaryngolog(y|ists?)|ear,? nose (and|&) throat( doctors?| specialists?)?|ent \/ otolaryngology|otolaryngology \(ent\))$/i, licenseTypes: /(Physician And Surgeon|Osteopathic Physician)/i },
+  { key: "audiology", label: "Audiologist", nppesQuery: "Audiologist", codes: ["231H", "237600000X"], aliases: /^(audiolog(y|ists?)|hearing (doctors?|tests?|testing))$/i, licenseTypes: /Audiolog/i },
+  { key: "hearing-aid", label: "Hearing Instrument Specialist", nppesQuery: "Hearing Instrument Specialist", codes: ["237700000X"], aliases: /^(hearing (aid|instrument) (specialists?|dispensers?|fitters?)|hearing aids?)$/i, licenseTypes: /Hearing/i },
+  { key: "slp", label: "Speech-Language Pathologist", nppesQuery: "Speech-Language Pathologist", codes: ["235Z"], aliases: /^(speech(-| )language patholog(y|ists?)|slp|speech therap(y|ists?))$/i, licenseTypes: /Speech/i },
+  { key: "neurology", label: "Neurology", nppesQuery: "Neurology", codes: ["2084N0400X", "2084N0402X", "2084N0008X"], aliases: /^(neurolog(y|ists?))$/i, licenseTypes: /(Physician And Surgeon|Osteopathic Physician)/i },
+  { key: "allergy", label: "Allergy & Immunology", nppesQuery: "Allergy", codes: ["207K"], aliases: /^(allerg(y|ists?)|allergy (and|&) immunology|immunolog(y|ists?))$/i, licenseTypes: /(Physician And Surgeon|Osteopathic Physician)/i },
 ];
 
 export function resolveSpecialty(input: string): SpecialtyDef | null {

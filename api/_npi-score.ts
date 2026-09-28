@@ -148,7 +148,7 @@ export function scoreReferral(loc: PracticeLocation, ctx: LocationContext): Conf
 // ── Provider confidence ──────────────────────────────────────────────────────
 export interface ProviderSignals {
   active: boolean;
-  specialtyMatch: { matched: boolean; label: string; requested: boolean };
+  specialtyMatch: { matched: boolean; label: string; requested: boolean; licenseTypes?: RegExp };
   license: LicenseCheck | null;
   licenseStateSupported: boolean;
   practiceState: string | null;
@@ -179,6 +179,8 @@ export function scoreProvider(s: ProviderSignals): ConfidenceScore {
     if (isActiveStatus(lic.status) && !isRestrictedStatus(lic.status)) add("pass", `WA ${lic.credentialType}: ${lic.status}${lic.expires ? `, expires ${lic.expires}` : ""} (${who})`, exact ? 20 : s.license.match === "ambiguous" ? 5 : 10);
     else if (isActiveStatus(lic.status)) add("warn", `WA credential status: "${lic.status}" (${who})`, 5);
     else add("fail", `WA credential status: "${lic.status}" (${who})`, -20);
+    const fits = s.specialtyMatch.licenseTypes;
+    if (fits && s.license.match !== "ambiguous" && !s.license.records.some((r) => fits.test(r.credentialType))) add("fail", `WA credential is “${lic.credentialType}”, which doesn't fit ${s.specialtyMatch.label} — the NPI taxonomy may be wrong`, -25);
     if (lic.actionTaken === "Yes") add("warn", "WA DOH reports “action taken” on this credential — see the certified record", 0);
     else if (lic.actionTaken === "Pending") add("warn", "WA DOH reports a pending action on this credential", 0);
   }

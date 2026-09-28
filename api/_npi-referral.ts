@@ -441,7 +441,8 @@ export async function finalizeResearch(
       if (c.downgraded) dropped.push({ reason: "“Referral fax” claim not supported by the source label — shown as a plain fax", detail: `${where}: ${n.number} (label: ${n.label ?? "none"})` });
     }
     const { confidence } = fieldConfidence(f, { npiAgrees: inNpi });
-    return { number: formatPhone(digits)!, digits, label: n.label ?? null, faxKind, sourceIds: sids, families: f, inNpi, confidence };
+    const label = typeof n.label === "string" ? n.label.replace(/^[#*\s]+|[*\s]+$/g, "") || null : null;
+    return { number: formatPhone(digits)!, digits, label, faxKind, sourceIds: sids, families: f, inNpi, confidence };
   };
 
   // Research locations.
@@ -635,7 +636,7 @@ export async function buildView(provider: ProviderDetail, research: ReferralRese
   const codes = provider.taxonomies.map((t) => t.code);
   const spec = o.specialty;
   const specMatch = spec
-    ? { matched: matchesSpecialty(spec, codes), label: spec.label, requested: true }
+    ? { matched: matchesSpecialty(spec, codes), label: spec.label, requested: true, licenseTypes: spec.licenseTypes }
     : { matched: codes.length > 0, label: provider.specialty ?? "no taxonomy", requested: false };
   const practiceState = provider.addresses[0]?.state ?? null;
 

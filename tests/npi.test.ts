@@ -389,3 +389,12 @@ test("destinations inside the search radius rank before stronger ones outside it
   assert.equal(view.locations[0].inRadius, true);
   assert.equal(view.locations.find((l) => l.name === "Far")!.inRadius, false);
 });
+
+test("licence type must fit the specialty (audiologist registered under an ENT taxonomy)", () => {
+  const ent = resolveSpecialty("ENT")!;
+  const aud: LicenseCheck = { ...WA_ACTIVE, records: [{ ...WA_ACTIVE.records[0], credentialNumber: "AUD.LD.70120088", credentialType: "Audiologist License" }] };
+  const base = { active: true, specialtyMatch: { matched: true, label: ent.label, requested: true, licenseTypes: ent.licenseTypes }, licenseStateSupported: true, practiceState: "WA", isOrg: false, npiUpdatedYearsAgo: 1, research: null };
+  const s = scoreProvider({ ...base, license: aud });
+  assert.ok(s.items.some((i) => i.kind === "fail" && i.label.includes("doesn't fit")));
+  assert.equal(scoreProvider({ ...base, license: WA_ACTIVE }).items.some((i) => i.label.includes("doesn't fit")), false);
+});

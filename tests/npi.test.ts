@@ -20,12 +20,19 @@ const COORDS: Record<string, [number, number]> = {
   "133 BROOKLINE": [42.3444, -71.1027],
   "1 CRANCH": [42.2507, -71.0027],
 };
+// Source pages the referral-fax check can "fetch".
+const PAGES: Record<string, string> = {
+  "https://www.uwmedicine.org/a": "<html><body><h2>ENT clinic</h2><p>Appointments 206-598-4022</p><p><b>Referral Fax:</b> (206) 598-7777</p></body></html>",
+  "https://www.seattlechildrens.org/x": "<html><body>Fax 206-985-3392. Providers: fax the New Appointment Request Form to 206-985-3121, Attn: Clinical Intake.</body></html>",
+  "https://optum.example/tonn": "<html><body>Optum - Edmonds 21401 72nd Ave W Phone: 1-425-259-0966 Fax: 1-425-259-1155</body></html>",
+};
 async function withFetch<T>(extra: (url: string, init?: RequestInit) => Response | null, fn: () => Promise<T>): Promise<T> {
   const real = globalThis.fetch;
   globalThis.fetch = (async (u: string | URL, init?: RequestInit) => {
     const url = String(u);
     const r = extra(url, init);
     if (r) return r;
+    if (PAGES[url]) return new Response(PAGES[url], { headers: { "content-type": "text/html" } });
     if (url.includes("geocoding.geo.census.gov") && url.includes("onelineaddress")) {
       const addr = decodeURIComponent(new URL(url).searchParams.get("address") ?? "").toUpperCase();
       const hit = Object.entries(COORDS).find(([k]) => addr.includes(k));
@@ -210,7 +217,8 @@ test("location-specific faxes, referral vs generic fax, multiple locations kept 
   assert.ok(vuw.distanceMi! > 2 && vuw.distanceMi! < 3);
   assert.equal(vuw.inRadius, true);
   assert.ok(vuw.referral.score > vnw.referral.score, "explicit referral fax on an official page scores higher");
-  assert.ok(vuw.referral.items.some((i) => i.label.startsWith("Official source labels it a referral fax")));
+  assert.ok(vuw.referral.items.some((i) => i.label.startsWith("Official source page labels it a referral fax")));
+  assert.equal(vuw.bestFax?.labelCheck, "page");
   assert.ok(vnw.referral.items.some((i) => i.label.startsWith("Referral-specific fax not established")));
   assert.equal(vuw.fields.referralFax.value, "(206) 598-7777");
   assert.equal(vnw.fields.referralFax.value, null);
@@ -415,4 +423,30 @@ test("fax number inside referral instructions becomes a referral fax (and only t
   hallucinated.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], referralInstructions: { text: "Fax referrals to 206-000-1111", sourceIds: ["S1"] } })];
   const r2 = await finalize(hallucinated, [S("S1", "https://x.org")], "no numbers here");
   assert.equal(r2.locations[0].faxes.filter((f) => f.faxKind === "referral").length, 0, "still must appear in the research text");
+});
+
+test("referral-fax claims are checked against the live source page", async () => {
+  const { pageSupportsReferralFax } = await import("../api/_npi-referral.ts");
+  assert.equal(pageSupportsReferralFax("Referral Fax: (206) 598-7777", "2065987777"), true);
+  assert.equal(pageSupportsReferralFax("Phone: 1-425-259-0966 Fax: 1-425-259-1155", "4252591155"), false);
+
+  // Tonn shape: the model wrote "fax referrals to …" but the page only says "Fax:".
+  const parsed = emptyParsed();
+  parsed.sources = [meta("S1", "first_party")];
+  parsed.locations = [loc({ line1: "21401 72nd Ave W", city: "Edmonds", postalCode: "98026", sourceIds: ["S1"], referralInstructions: { text: "Call support to confirm routing and fax referrals to 1-425-259-1155.", sourceIds: ["S1"] } })];
+  const r = await finalize(parsed, [S("S1", "https://optum.example/tonn")], "fax referrals to 1-425-259-1155");
+  const f = r.locations.find((l) => l.city === "Edmonds")!.faxes[0];
+  assert.equal(f.faxKind, "general", "page contradicts the model's wording → plain fax");
+  assert.ok(r.dropped.some((d) => d.reason.includes("not found next to this number on the source page")));
+
+  // Page unavailable (404/PDF): kept, flagged unverifiable, reduced credit.
+  const p2 = emptyParsed();
+  p2.sources = [meta("S1", "first_party")];
+  p2.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], faxes: [{ number: "206-111-9999", label: "Referral fax", faxKind: "referral", sourceIds: ["S1"] }] })];
+  const r2 = await finalize(p2, [S("S1", "https://blocked.example/page")], "Referral fax 206-111-9999");
+  const f2 = r2.locations[0].faxes.find((x) => x.digits === "2061119999")!;
+  assert.equal(f2.faxKind, "referral");
+  assert.equal(f2.labelCheck, "unverifiable");
+  const view = await withFetch(() => null, () => buildView(provider(), r2, { origin: null, radiusMi: null, specialty: null, license: null }));
+  assert.ok(view.locations[0].referral.items.some((i) => i.points === 5 && i.label.includes("couldn't be machine-checked")));
 });

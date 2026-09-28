@@ -75,6 +75,51 @@ export function referralFaxesIn(text: string): { digits: string; label: string }
   return out;
 }
 
+// ── Source-page check for referral-fax claims ────────────────────────────────
+// The research report is model-written, so its wording can't prove a label.
+// For every "referral" fax we fetch the cited pages and require the number and
+// "referral"/"intake" wording within ~160 characters of each other.
+
+export function pageSupportsReferralFax(pageText: string, digits: string): boolean {
+  const text = pageText.replace(/\s+/g, " ");
+  const re = new RegExp(`\\(?${digits.slice(0, 3)}\\)?[\\s.\\-]?${digits.slice(3, 6)}[\\s.\\-]?${digits.slice(6)}`, "g");
+  for (const m of text.matchAll(re)) {
+    const win = text.slice(Math.max(0, m.index! - 160), m.index! + m[0].length + 60);
+    if (/referr|intake/i.test(win) && /fax/i.test(win)) return true;
+  }
+  return false;
+}
+
+function htmlToText(html: string): string {
+  return html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&");
+}
+
+async function fetchPageText(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (referral-demo source check)", Accept: "text/html" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
+    const type = res.headers.get("content-type") ?? "";
+    if (!res.ok || !type.includes("html")) return null;
+    return htmlToText(await res.text());
+  } catch {
+    return null;
+  }
+}
+
+export async function checkReferralLabels(locations: PracticeLocation[], sources: EvidenceSource[], dropped: ReferralResearch["dropped"]): Promise<void> {
+  const pages = new Map<string, Promise<string | null>>();
+  const page = (url: string) => { if (!pages.has(url)) pages.set(url, fetchPageText(url)); return pages.get(url)!; };
+  await Promise.all(locations.flatMap((l) => l.faxes.filter((f) => f.faxKind === "referral").map(async (f) => {
+    const urls = f.sourceIds.map((id) => sources.find((s) => s.id === id)?.url).filter((u): u is string => Boolean(u));
+    const texts = await Promise.all(urls.map(page));
+    const readable = texts.filter((t): t is string => t !== null);
+    if (readable.some((t) => pageSupportsReferralFax(t, f.digits))) { f.labelCheck = "page"; return; }
+    if (readable.length === 0) { f.labelCheck = "unverifiable"; return; }
+    f.faxKind = "general";
+    f.labelCheck = undefined;
+    dropped.push({ reason: "“Referral fax” wording not found next to this number on the source page — shown as a plain fax", detail: `${l.name}: ${f.number}` });
+  })));
+}
+
 // ── Addresses ────────────────────────────────────────────────────────────────
 
 const DIRS = new Set(["N", "S", "E", "W", "NE", "NW", "SE", "SW", "NORTH", "SOUTH", "EAST", "WEST"]);
@@ -523,6 +568,7 @@ export async function finalizeResearch(
       locations.push(n);
     }
   }
+  await checkReferralLabels(locations, sources, dropped);
   for (const l of locations) {
     l.bestFax = pickBestFax(l.faxes);
   }

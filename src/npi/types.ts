@@ -128,6 +128,7 @@ export interface ContactNumber {
   digits: string;
   label: string | null; // verbatim label from the source, e.g. "Referral Fax"
   faxKind?: FaxKind; // faxes only; "referral" survives ONLY if the label says referral
+  labelCheck?: "page" | "unverifiable"; // referral faxes: wording found next to the number on the live source page, or page not machine-readable
   sourceIds: string[];
   families: SourceFamily[];
   inNpi: boolean; // same digits appear in the NPI record

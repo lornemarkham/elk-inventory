@@ -130,9 +130,11 @@ export function scoreReferral(loc: PracticeLocation, ctx: LocationContext): Conf
   if (ctx.npiFaxElsewhere) add("warn", `The NPI fax for this address is published for a different location (${ctx.npiFaxElsewhere})`, -10);
 
   // 4. Is it specifically a referral fax?
-  if (fax?.faxKind === "referral") {
+  if (fax?.faxKind === "referral" && fax.labelCheck === "unverifiable") {
+    add("pass", `Research reports a referral fax, but the source page couldn't be machine-checked ("${fax.label}")`, 5);
+  } else if (fax?.faxKind === "referral") {
     const official = nonFederal(fax.families).includes("first_party");
-    add("pass", official ? `Official source labels it a referral fax ("${fax.label}")` : `A ${FAMILY_LABEL[nonFederal(fax.families)[0] ?? "independent"].toLowerCase()} labels it a referral fax ("${fax.label}")`, official ? 15 : 8);
+    add("pass", official ? `Official source page labels it a referral fax, checked on the page ("${fax.label}")` : `A ${FAMILY_LABEL[nonFederal(fax.families)[0] ?? "independent"].toLowerCase()} page labels it a referral fax ("${fax.label}")`, official ? 15 : 8);
   } else if (fax) add("unknown", "Referral-specific fax not established — this is a fax for the location, not a confirmed referral intake line", 0);
 
   if (ctx.specialtyMismatch) add("fail", `Provider's current practice appears to be ${ctx.specialtyMismatch}, not the NPI specialty — confirm before referring`, -25);

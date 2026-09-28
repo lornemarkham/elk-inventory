@@ -141,7 +141,7 @@ export function destinationChecks(o: { active: boolean; loc: PracticeLocation; l
   out.push(!phone ? { state: "unknown", label: "No phone found" } : nonFederal(phone.families).length ? { state: "ok", label: "Phone corroborated" } : { state: "unknown", label: "Phone from NPI only" });
   const fax = loc.bestFax;
   out.push(!fax ? { state: "unknown", label: "No fax found" } : nonFederal(fax.families).length ? { state: "ok", label: "Fax corroborated" } : { state: "unknown", label: "Fax from NPI only" });
-  out.push(fax?.faxKind === "referral" ? { state: "ok", label: "Referral fax labelled by source" } : { state: "unknown", label: "Referral-specific fax not established" });
+  out.push(fax?.faxKind === "referral" && fax.labelCheck !== "unverifiable" ? { state: "ok", label: "Referral fax labelled by source" } : fax?.faxKind === "referral" ? { state: "unknown", label: "Referral fax reported, page not checkable" } : { state: "unknown", label: "Referral-specific fax not established" });
   return out;
 }
 
@@ -172,6 +172,7 @@ export function FaxBlock({ fax, compact = false }: { fax: ContactNumber | null; 
       <div className="pi-fax-kind"><Icon name="fax" size={13} /> {FAX_KIND_LABEL[fax.faxKind ?? "unknown"]}</div>
       <div className="pi-fax-num pi-mono">{fax.number}</div>
       {!compact && fax.label && <div className="pi-fax-label">Source label: “{fax.label}”</div>}
+      {!compact && referral && <div className="pi-fax-label">{fax.labelCheck === "page" ? "✓ Referral wording checked on the source page" : "Source page couldn't be machine-checked — confirm by phone"}</div>}
     </div>
   );
 }

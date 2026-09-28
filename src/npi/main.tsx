@@ -1,14 +1,23 @@
 // ── /npi-list entry — TEMPORARY NPI demo, fully separate from the Inventory app ──
-import { StrictMode } from "react";
+// /npi-list/referral-demo and /npi-list/opportunity are the separate synthetic
+// referral-workflow POC; they load lazily and never touch the finder's state.
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import NpiApp from "./NpiApp";
 import "./npi.css";
 
+const ReferralDemo = lazy(() => import("./demo/ReferralDemo"));
+const Opportunity = lazy(() => import("./demo/Opportunity"));
+
 const root = document.getElementById("root");
 if (!root) throw new Error("No root element");
 
+const path = location.pathname.replace(/\/+$/, "");
+const page = path === "/npi-list/referral-demo" ? <ReferralDemo /> : path === "/npi-list/opportunity" ? <Opportunity /> : <NpiApp />;
+if (path === "/npi-list/referral-demo" || path === "/npi-list/opportunity") document.title = "AI Referral Workflow — Synthetic POC";
+
 createRoot(root).render(
   <StrictMode>
-    <NpiApp />
+    <Suspense fallback={null}>{page}</Suspense>
   </StrictMode>
 );

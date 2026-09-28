@@ -79,6 +79,7 @@ export default function NpiApp() {
           <span>Referral Finder</span>
         </button>
         {!home && <FindForm compact initial={route} onFind={find} />}
+        <a className="pi-top-demo" href="/npi-list/referral-demo" title="Separate demo with synthetic patients">Demo: referral workflow →</a>
         <span className="pi-top-meta">Demo</span>
       </header>
 
@@ -172,6 +173,10 @@ function Home({ onFind, onLookup }: { onFind: (s: string, l: string, r: number) 
         <Icon name="chevron" />
         <div><span>3</span> Send the referral</div>
       </div>
+      <a className="pi-demo-link" href="/npi-list/referral-demo">
+        <span className="pi-demo-tag">Demo · synthetic patients</span>
+        Try the fake outbound referral workflow →
+      </a>
       <form className="pi-lookup" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onLookup(q.trim()); }}>
         <span>Already know the provider?</span>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or 10-digit NPI" aria-label="Provider name or NPI" />

@@ -4,7 +4,7 @@
 // several at once.
 import { useSyncExternalStore } from "react";
 import { fetchView, loadResearch, saveResearch, streamResearch, type SearchContext } from "./api";
-import type { ReferralView } from "./types";
+import type { ReferralResearch, ReferralView } from "./types";
 
 export interface ResearchState {
   stage: "idle" | "research" | "extract" | "score" | "done" | "error";
@@ -39,14 +39,19 @@ export function useResearch(npi: string, ctx: SearchContext | null): ResearchSta
   return useSyncExternalStore(subscribe, () => states.get(key) ?? IDLE);
 }
 
+// Non-hook access, for views that list many providers at once.
+export const getResearch = (npi: string, ctx: SearchContext | null): ResearchState => states.get(ctxKey(npi, ctx)) ?? IDLE;
+export { subscribe as subscribeResearch };
+
 export const isRunning = (s: ResearchState) => s.stage === "research" || s.stage === "extract" || s.stage === "score";
 
-// Cached research (from this browser) re-scored for this search context — no AI call.
-export async function hydrateCached(npi: string, ctx: SearchContext | null): Promise<void> {
+// Cached research (from this browser, else a saved result passed in) re-scored
+// for this search context — no AI call.
+export async function hydrateCached(npi: string, ctx: SearchContext | null, saved: ReferralResearch | null = null): Promise<void> {
   const key = ctxKey(npi, ctx);
   const cur = states.get(key);
   if (cur && (cur.view || isRunning(cur))) return;
-  const cached = loadResearch(npi);
+  const cached = loadResearch(npi) ?? saved;
   if (!cached) return;
   try {
     const view = await fetchView(npi, ctx, cached);

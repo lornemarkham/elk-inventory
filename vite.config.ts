@@ -12,7 +12,7 @@ function npiDevApi(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         // Mirror vercel.json's /npi-list rewrite.
-        if (req.url && /^\/npi-list(\/)?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list\/?/, '/npi-list/index.html')
+        if (req.url && /^\/npi-list(\/(referral-demo|opportunity))?\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list(\/(referral-demo|opportunity))?\/?/, '/npi-list/index.html')
         const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research))(\?.*)?$/)
         if (!m) return next()
         try {

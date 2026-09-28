@@ -150,6 +150,10 @@ test("naive SRFax dates parse in both observed shapes", () => {
   assert.equal(naiveSeconds("2026-09-28 03:12:00") !== null, true);
   assert.equal(naiveSeconds("Sep 28/26 03:12 PM")! - naiveSeconds("Sep 28/26 03:12 AM")!, 12 * 3600);
   assert.equal(naiveSeconds("Sep 28/26 03:12 PM"), naiveSeconds("2026-09-28 15:12"));
+  // Verbatim DateSent observed from production Get_FaxStatus (FaxDetailsID 1752976627).
+  assert.equal(naiveSeconds("Sep 28, 2026 03:13 AM"), naiveSeconds("2026-09-28 03:13"));
+  assert.equal(naiveSeconds("Sep 28, 2026 03:13 PM"), naiveSeconds("2026-09-28 15:13"));
+  assert.equal(naiveSeconds("Sep 28, 2026 12:05 AM"), naiveSeconds("2026-09-28 00:05"));
   assert.equal(naiveSeconds("garbage"), null);
   assert.equal(naiveSeconds(null), null);
 });

@@ -541,7 +541,7 @@ function OutboxDetail({ o, now }: { o: OutboxItem; now: number }) {
         <div className="pmsx-ops">
           <div className="pmsx-ops-row"><Tag k="real">Get_FaxStatus polling</Tag> every {POLL_MS / 1000}s until a final status — this is what updates the Outbox.</div>
           <div className="pmsx-ops-row"><Tag k={l.callbackRegistered ? "real" : "future"}>SRFax completion callback</Tag> {l.callbackRegistered ? (l.callback ? <>received {fmt(l.callback.receivedAt)} · “{l.callback.claimedStatus}” · {l.callback.verified ? "verified against Get_FaxStatus" : "not verified"} · {l.callback.deliveries} deliver{l.callback.deliveries === 1 ? "y" : "ies"}</> : "registered (sNotifyURL) · not observed by the server instance that answered the last status check") : "not registered for this fax (needs a public https server)"}</div>
-          <div className="pmsx-ops-row"><Tag k="real">Endpoint receipt check</Tag> {l.receipt ? (l.receipt.found ? <>matching inbound fax found on the controlled line ({l.receipt.receivedAt ?? "time n/a"})</> : <>no match yet — {l.receipt.basis}</>) : t.state === "sent" ? "checking the controlled line's SRFax inbox…" : "runs after SRFax reports Sent"}</div>
+          <div className="pmsx-ops-row"><Tag k="real">Endpoint receipt check</Tag> {l.receipt ? (l.receipt.found ? <>matching inbound fax found on the controlled line ({l.receipt.receivedAt ?? "time n/a"})</> : <>no match yet — {l.receipt.basis}{l.receipt.counts && <span className="pi-muted"> · inbox {l.receipt.counts.inbox}, from our caller ID {l.receipt.counts.fromOurCallerId}</span>}</>) : t.state === "sent" ? "checking the controlled line's SRFax inbox…" : "runs after SRFax reports Sent"}</div>
         </div>
       )}
       {l && l.events.length > 0 && (

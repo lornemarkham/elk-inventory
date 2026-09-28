@@ -227,7 +227,8 @@ export function faxInboxForm(cfg: SrfaxConfig, from: Date, to: Date): URLSearchP
   return new URLSearchParams({ action: "Get_Fax_Inbox", access_id: cfg.accessId, access_pwd: cfg.accessPwd, sResponseFormat: "JSON", sPeriod: "RANGE", sStartDate: ymd(from), sEndDate: ymd(to) });
 }
 
-export interface EndpointReceipt { found: boolean; receivedAt: string | null; pages: number | null; receiveStatus: string | null; basis: string }
+// counts: sizes only (never content) so a miss can be diagnosed.
+export interface EndpointReceipt { found: boolean; receivedAt: string | null; pages: number | null; receiveStatus: string | null; basis: string; counts?: { inbox: number; fromOurCallerId: number; unreadableDates: number } }
 
 export const RECEIPT_WINDOW_S = 30 * 60;
 
@@ -237,7 +238,8 @@ export function naiveSeconds(v: unknown): number | null {
   const s = String(v ?? "").trim();
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)) / 1000;
-  m = s.match(/^([A-Za-z]{3})[a-z]* (\d{1,2})\/(\d{2,4}),? (\d{1,2}):(\d{2})(?::(\d{2}))? ?([AP]M)?/i);
+  // "Sep 28, 2026 03:13 AM" (observed from Get_FaxStatus, Sep 2026) or "Sep 28/26 03:13 AM"
+  m = s.match(/^([A-Za-z]{3})[a-z]*\.? (\d{1,2})(?:\/|, ?)(\d{2,4}),? (\d{1,2}):(\d{2})(?::(\d{2}))? ?([AP]M)?/i);
   if (m) {
     const mon = "janfebmaraprmayjunjulaugsepoctnovdec".indexOf(m[1].toLowerCase()) / 3;
     if (mon < 0 || !Number.isInteger(mon)) return null;
@@ -254,17 +256,18 @@ export function matchReceipt(json: unknown, sent: { callerId: string; pages: num
   if (r?.Status !== "Success") return { error: `SRFax: ${typeof r?.Result === "string" ? r.Result : "inbox lookup failed"}` };
   const rows = Array.isArray(r.Result) ? (r.Result as Record<string, unknown>[]) : [];
   const sentAt = naiveSeconds(sent.dateSent);
+  const ours = rows.filter((x) => String(x.CallerID ?? "").replace(/\D/g, "").endsWith(sent.callerId));
+  const counts = { inbox: rows.length, fromOurCallerId: ours.length, unreadableDates: ours.filter((x) => naiveSeconds(x.Date) === null).length };
   const basis = `inbound fax on this SRFax account from our caller ID, ${sent.pages ?? "?"} page(s), within ${RECEIPT_WINDOW_S / 60} min of SRFax's DateSent`;
-  if (sentAt === null || sent.pages == null) return { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: `${basis} — not checked: SRFax's DateSent/Pages couldn't be read` };
-  const hits = rows.filter((x) => {
-    const caller = String(x.CallerID ?? "").replace(/\D/g, "");
+  if (sentAt === null || sent.pages == null) return { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: `${basis} — not checked: SRFax's DateSent/Pages couldn't be read`, counts };
+  const hits = ours.filter((x) => {
     const at = naiveSeconds(x.Date);
-    return caller.endsWith(sent.callerId) && Number(x.Pages) === sent.pages && at !== null && Math.abs(at - sentAt) <= RECEIPT_WINDOW_S;
+    return Number(x.Pages) === sent.pages && at !== null && Math.abs(at - sentAt) <= RECEIPT_WINDOW_S;
   });
   // Two candidates in the window would make the match ambiguous: claim nothing.
-  if (hits.length !== 1) return { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: hits.length > 1 ? `${basis} — ${hits.length} candidates, ambiguous` : basis };
+  if (hits.length !== 1) return { found: false, receivedAt: null, pages: null, receiveStatus: null, basis: hits.length > 1 ? `${basis} — ${hits.length} candidates, ambiguous` : basis, counts };
   const hit = hits[0];
-  return { found: true, receivedAt: hit.Date == null ? null : String(hit.Date), pages: Number(hit.Pages), receiveStatus: hit.ReceiveStatus == null ? null : String(hit.ReceiveStatus), basis };
+  return { found: true, receivedAt: hit.Date == null ? null : String(hit.Date), pages: Number(hit.Pages), receiveStatus: hit.ReceiveStatus == null ? null : String(hit.ReceiveStatus), basis, counts };
 }
 
 // ── Responses (SRFax's own vocabulary is kept verbatim) ─────────────────────

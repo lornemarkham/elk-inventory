@@ -32,7 +32,7 @@ export interface CallbackSeen { receivedAt: string; claimedStatus: string; verif
 
 // Evidence that the controlled endpoint received the fax: its own SRFax inbox
 // shows a matching inbound fax. Not "read", not "accepted".
-export interface EndpointReceipt { found: boolean; receivedAt: string | null; pages: number | null; receiveStatus: string | null; basis: string }
+export interface EndpointReceipt { found: boolean; receivedAt: string | null; pages: number | null; receiveStatus: string | null; basis: string; counts?: { inbox: number; fromOurCallerId: number; unreadableDates: number } }
 
 export interface LiveFax {
   mode: "live";

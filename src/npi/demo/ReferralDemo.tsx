@@ -116,6 +116,7 @@ export default function ReferralDemo() {
           })}
         </nav>
         <div className="rd-top-links">
+          <a href="/npi-list/fax-settings">Fax line</a>
           <button className="pi-link" onClick={() => setAbout(true)}>About this POC</button>
           <a href="/npi-list/opportunity">Why explore this? →</a>
         </div>
@@ -900,7 +901,7 @@ function About({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <p>The audiologist supplies the referral type. Deterministic code finds candidates and applies hard checks; AI web research only adds evidence (current location, fax labels, specialty reconciliation); plain rules sort destinations into Recommended and Needs review; the human chooses.</p>
-        <p className="pi-muted">Seattle ENT destinations show web research saved from a real run on Sep 28, 2026, re-scored live for this search. That saved research is only used for ENT-family searches. Fresh research for other providers uses paid AI calls and needs the demo key.</p>
+        <p className="pi-muted">Seattle ENT destinations show web research saved from a real run on Sep 28, 2026, re-scored live for this search. That saved research is only used for ENT-family searches. A fresh search first checks the nearest providers against public web pages automatically (search + fetched pages, no AI); deeper AI research is a paid step for unresolved providers, available to authorized operators.</p>
         <a href="/npi-list/opportunity">Why explore this? →</a>
       </div>
     </div>

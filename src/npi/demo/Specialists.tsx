@@ -4,8 +4,8 @@
 // web research then adds evidence, and ./routing.ts sorts destinations into
 // Recommended vs Needs review with plain rules. The human chooses.
 import { useEffect, useMemo, useReducer, useState } from "react";
-import { getDemoKey, loadResearch, searchNearby, setDemoKey, type SearchContext } from "../api";
-import { getResearch, hydrateCached, isRunning, startResearch, subscribeResearch } from "../research";
+import { discoveryConfigured, getDemoKey, loadResearch, normalizeLocation, operatorMode, searchNearby, setDemoKey, type SearchContext } from "../api";
+import { DISCOVERY_LIMIT, getDiscovery, getResearch, hydrateCached, isRunning, runDiscovery, startResearch, subscribeResearch, type Discovery } from "../research";
 import type { NearbyResponse, NearbyResult, PracticeLocation, ReferralView } from "../types";
 import { Breakdown, Checks, ConflictCard, FaxBlock, Icon, ScorePill, SourceChips, destinationChecks, formatDate, initials, type Check } from "../ui";
 import { TERMS } from "../semantics";
@@ -13,7 +13,7 @@ import { loadSnapshot } from "./snapshot";
 import { toDestination, type Destination } from "./model";
 import { assessDestination, groupDestinations, noDestinationReason, resultsMatchIntent, savedResearchFor, snapshotAppliesTo, type Assessment } from "./routing";
 const RADII = [5, 10, 25, 50];
-const STAGES = ["Querying the federal NPI Registry for the requested taxonomy", "Geocoding every practice address", "Measuring distance from the patient's area", "Checking Washington licences", "Loading web-research evidence"];
+const STAGES = ["Querying the federal NPI Registry for the requested taxonomy", "Geocoding every practice address", "Measuring distance from the patient's area", "Checking Washington licences", "Loading saved research evidence"];
 
 interface Props {
   specialty: string;
@@ -26,7 +26,9 @@ interface Props {
   onChoose: (d: Destination) => void;
 }
 
-export default function Specialists({ specialty, location, radius, age, flagged, onRadius, onSearched, onChoose }: Props) {
+export default function Specialists({ specialty, location: typed, radius, age, flagged, onRadius, onSearched, onChoose }: Props) {
+  const location = normalizeLocation(typed);
+  const [searchReady, setSearchReady] = useState<boolean | null>(null);
   const [state, setState] = useState<{ status: "loading" | "done" | "error"; data?: NearbyResponse; error?: string }>({ status: "loading" });
   const [snapshot, setSnapshot] = useState<Map<string, ReferralView["research"]> | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -68,6 +70,14 @@ export default function Specialists({ specialty, location, radius, age, flagged,
     Promise.all(withResearch.map((r) => hydrateCached(r.npi, ctx, saved(r.npi)))).finally(() => setHydrated(true));
   }, [data, ctx, snapshot]);
 
+  // Cheap public-web pass on the nearest registry candidates that have no research
+  // yet. Never AI; never more than DISCOVERY_LIMIT providers per search.
+  useEffect(() => {
+    if (!data || !ctx || !hydrated) return;
+    discoveryConfigured().then(setSearchReady);
+    runDiscovery(discoveryPicks(data.results, ctx), ctx);
+  }, [data, ctx, hydrated]);
+
   if (state.status === "loading" || (data && !hydrated)) {
     return (
       <div className="rd-card rd-searching">
@@ -99,31 +109,35 @@ export default function Specialists({ specialty, location, radius, age, flagged,
   }
   const { recommended, review } = groupDestinations(researched);
   const label = data.specialty.label;
+  const checked = data.results.map((r) => ({ r, d: getDiscovery(r.npi, ctx) })).filter((x): x is { r: NearbyResult; d: Discovery } => x.d !== null);
+  const checking = checked.filter((x) => x.d.status === "running").length;
 
   return (
     <div className="rd-specialists">
       <div className="rd-found">
         <div>
           <div className="rd-found-count">{data.results.length} {label} providers in the NPI Registry within {data.radiusMi} miles</div>
-          <div className="rd-found-sub">From {data.origin.label} · taxonomy {data.specialty.codes.join(" · ")} · {data.scanned.records} registry records scanned · {researched.length} with web-research evidence</div>
+          <div className="rd-found-sub">From {data.origin.label} · taxonomy {data.specialty.codes.join(" · ")} · {data.scanned.records} registry records scanned · {researched.length} with web evidence</div>
         </div>
         <div className="rd-radius" role="group" aria-label="Radius">
           {RADII.map((r) => <button key={r} className={r === radius ? "rd-on" : ""} onClick={() => onRadius(r)}>{r} mi</button>)}
         </div>
       </div>
 
+      <DiscoveryPanel checked={checked} checking={checking} searchReady={searchReady} />
+
       {researched.length > 0 ? (
         <>
           <h3 className="rd-h3 rd-h3-good"><Icon name="check" size={15} /> Recommended destinations <span className="rd-h3-n">{recommended.length}</span> <span className="rd-live-tag"><span className="rd-live-dot" /> Real providers · real public evidence</span></h3>
           <p className="rd-group-note">Match the requested referral type, no serious conflict in the evidence, a usable fax, and no known fit blocker for this synthetic patient.</p>
           {recommended.length ? (
-            <div className="rd-cands">{recommended.map((c, i) => <CandidateCard key={c.r.npi} c={c} top={i === 0} onChoose={onChoose} />)}</div>
+            <div className="rd-cands">{recommended.map((c, i) => <CandidateCard key={c.r.npi} c={c} top={i === 0} ctx={ctx} onChoose={onChoose} />)}</div>
           ) : <div className="rd-card rd-note"><Icon name="info" /> No researched destination clears every check. See Needs review below.</div>}
           {review.length > 0 && (
             <>
               <h3 className="rd-h3 rd-h3-review"><Icon name="alert" size={15} /> Needs review <span className="rd-h3-n">{review.length}</span></h3>
               <p className="rd-group-note">Kept visible on purpose: each one has a specific reason a coordinator should look before sending. High destination confidence alone does not make a destination right for this referral.</p>
-              <div className="rd-cands">{review.map((c) => <CandidateCard key={c.r.npi} c={c} top={false} onChoose={onChoose} />)}</div>
+              <div className="rd-cands">{review.map((c) => <CandidateCard key={c.r.npi} c={c} top={false} ctx={ctx} onChoose={onChoose} />)}</div>
             </>
           )}
         </>
@@ -131,8 +145,8 @@ export default function Specialists({ specialty, location, radius, age, flagged,
         <div className="rd-card rd-note">
           <Icon name="info" />
           <div>
-            <strong>These {label} providers need research before a destination can be offered with confidence.</strong> Each is a real registry match — NPI taxonomy {label}, practice address within {data.radiusMi} miles — but its current location and fax aren't verified yet.
-            {" "}Click <strong>Research</strong> on any provider below: live web research establishes identity, current practice, locations, phone and fax with evidence, then the same rules place it under Recommended or Needs review, where you can choose it.
+            <strong>{checking ? `Checking public web pages for the ${checked.length} nearest ${label} providers…` : `No ${label} provider could be corroborated from public web pages yet.`}</strong> Each registry match below is real — NPI taxonomy {label}, practice address within {data.radiusMi} miles — but its current location and fax aren't independently verified.
+            {" "}Providers whose fetched pages corroborate them move up to Recommended or Needs review. For anything still unresolved, <strong>AI research</strong> can dig further.
             {!useSnapshot && <> (The saved Seattle research covers ENT only and is never substituted for other referral types.)</>}
           </div>
         </div>
@@ -148,9 +162,55 @@ export default function Specialists({ specialty, location, radius, age, flagged,
         </div>
       )}
 
-      <RegistryOnly list={registryOnly} ctx={ctx} label={label} open={researched.length === 0} />
+      <RegistryOnly list={registryOnly} ctx={ctx} label={label} open={false} />
     </div>
   );
+}
+
+// Nearest candidates with no research yet — the only ones the cheap pass touches.
+function discoveryPicks(results: NearbyResult[], ctx: SearchContext): NearbyResult[] {
+  return results.filter((r) => r.status === "Active" && !getResearch(r.npi, ctx).view).slice(0, DISCOVERY_LIMIT);
+}
+
+// ── What the cheap public-web pass did, in full ─────────────────────────────
+
+function DiscoveryPanel({ checked, checking, searchReady }: { checked: { r: NearbyResult; d: Discovery }[]; checking: number; searchReady: boolean | null }) {
+  if (!checked.length) return null;
+  const logs = checked.map((x) => x.d.log).filter((l): l is NonNullable<Discovery["log"]> => l !== null);
+  const failed = logs.filter((l) => l.outcome === "search_failed");
+  const corroborated = logs.filter((l) => l.outcome === "corroborated").length;
+  const fetched = logs.reduce((n, l) => n + l.pages.length, 0);
+  const urls = logs.reduce((n, l) => n + l.search.hits.length, 0);
+  return (
+    <details className="rd-card rd-discovery">
+      <summary>
+        <Icon name="search" size={14} />{" "}
+        {checking ? <><span className="pi-spinner" /> Public-web check: {checked.length - checking}/{checked.length} nearest providers checked</>
+          : <>Public-web check: {checked.length} nearest providers · {corroborated} corroborated</>}
+        <span className="pi-muted"> · {logs.length - failed.length} searches{failed.length ? ` (+${failed.length} failed)` : ""} · {urls} URLs · {fetched} pages fetched · 0 AI calls</span>
+      </summary>
+      {searchReady === false && <div className="rd-live-off"><Icon name="alert" size={14} /> Web search is not configured on this server, so no public-web check ran. That says nothing about whether evidence exists.</div>}
+      {failed.length > 0 && searchReady !== false && <div className="rd-live-off"><Icon name="alert" size={14} /> {failed.length} search{failed.length > 1 ? "es" : ""} failed ({failed[0].search.error}). A failed search is not evidence of absence.</div>}
+      <p className="pi-muted">Search only finds candidate pages. Evidence comes only from the fetched page: the provider's name plus an identifier from the NPI record (NPI number, practice address, phone or fax). Search-result text is never used. Scores come from the same rules as full research.</p>
+      <ul className="rd-disc-list">
+        {checked.map(({ r, d }) => (
+          <li key={r.npi}>
+            <strong>{r.name}</strong> — {d.status === "running" ? "checking…" : d.status === "error" ? `check failed (${d.error})` : outcomeText(d.log!)}
+            {d.log && d.log.pages.length > 0 && (
+              <ul>{d.log.pages.map((p) => <li key={p.url} className={p.accepted ? "pi-good" : "pi-muted"}><span className="pi-mono">{p.domain}</span> — {p.reason}{p.evidence ? `. ${p.evidence}` : ""}</li>)}</ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function outcomeText(l: NonNullable<Discovery["log"]>): string {
+  if (l.outcome === "search_failed") return `search failed (${l.search.error}) — not evidence of absence`;
+  if (l.outcome === "no_results") return "search returned no results";
+  if (l.outcome === "corroborated") return "corroborated by a fetched page";
+  return l.pages.length ? "fetched pages did not corroborate this provider" : "no fetchable candidate pages";
 }
 
 // ── One researched destination ──────────────────────────────────────────────
@@ -191,7 +251,7 @@ function candidate(r: NearbyResult, view: ReferralView, requested: string, age: 
   return { r, view, best, alternates: inRadius.filter((l) => l !== best && l.bestFax), checks, assessment, distanceMi: best.distanceMi };
 }
 
-function CandidateCard({ c, top, onChoose }: { c: Candidate; top: boolean; onChoose: (d: Destination) => void }) {
+function CandidateCard({ c, top, ctx, onChoose }: { c: Candidate; top: boolean; ctx: SearchContext; onChoose: (d: Destination) => void }) {
   const [why, setWhy] = useState(false);
   const { r, view, best, assessment: a } = c;
   const research = view.research!;
@@ -199,6 +259,8 @@ function CandidateCard({ c, top, onChoose }: { c: Candidate; top: boolean; onCho
   const spec = view.fields.specialty.value ?? r.specialty;
   const choose = (loc: PracticeLocation) => loc.bestFax && onChoose(toDestination({ npi: r.npi, name: view.provider.name, credential: view.provider.credential, specialty: spec, loc, fax: loc.bestFax, providerScore: view.providerScore.score, researchedAt: research.researchedAt, sources: research.sources, reviewReasons: a.reviewReasons }));
   const org = best.organization && best.organization !== best.name && !best.name.startsWith(best.organization) ? best.organization : null;
+  const cheap = research.method === "public_web";
+  const rs = getResearch(r.npi, ctx);
 
   return (
     <article className={`rd-cand ${top ? "rd-cand-top" : ""} ${review ? "rd-cand-review" : ""}`}>
@@ -260,13 +322,18 @@ function CandidateCard({ c, top, onChoose }: { c: Candidate; top: boolean; onCho
             <div><strong>Location evidence:</strong> <SourceChips ids={best.sourceIds} sources={research.sources} /></div>
             {best.bestFax && <div><strong>Fax evidence:</strong> {best.bestFax.label ? <>source label “{best.bestFax.label}” </> : null}<SourceChips ids={best.bestFax.sourceIds} sources={research.sources} /></div>}
             <div className="pi-muted">Neither score rates the clinician, and neither says the destination suits this patient — that is {TERMS.fit.label.toLowerCase()}, checked separately with plain rules.</div>
-            <div className="pi-muted">Web research run {formatDate(research.researchedAt)} · re-scored now for this search · <a href={`/npi-list?npi=${r.npi}`} target="_blank" rel="noreferrer">Full evidence ↗</a></div>
+            <div className="pi-muted">{cheap ? "Public-web check (search + fetched pages, no AI)" : "Web research"} run {formatDate(research.researchedAt)} · re-scored now for this search{!cheap && <> · <a href={`/npi-list?npi=${r.npi}`} target="_blank" rel="noreferrer">Full evidence ↗</a></>}</div>
           </div>
         </div>
       )}
 
+      {cheap && <div className="rd-cand-method"><Icon name="search" size={12} /> Corroborated by a fetched public page ({research.sources.map((s) => s.domain).join(", ")}) — no AI used</div>}
+
       <div className="rd-cand-actions">
         <button className="pi-link" onClick={() => setWhy(!why)}>{why ? "Hide evidence" : "Why trust this destination?"}</button>
+        {cheap && (isRunning(rs) ? <span className="rd-reg-status"><span className="pi-spinner" /> AI research running…</span>
+          : rs.stage === "error" ? <span className="rd-reg-status pi-bad">{rs.code === "locked" ? "AI research needs operator access" : "AI research failed"}</span>
+          : review && <button className="pi-btn" onClick={() => startResearch(r.npi, ctx, false)}><Icon name="sparkle" /> AI research</button>)}
         {c.alternates.length > 0 && (
           <details className="rd-alts">
             <summary>{c.alternates.length} other location{c.alternates.length > 1 ? "s" : ""} in range</summary>
@@ -297,25 +364,27 @@ function RegistryOnly({ list, ctx, label, open }: { list: NearbyResult[]; ctx: S
   const locked = list.some((r) => getResearch(r.npi, ctx).code === "locked");
   return (
     <details className="rd-registry" open={open}>
-      <summary>{list.length} {open ? "" : "more "}{label} registry matches in range — not yet researched</summary>
-      <p className="pi-muted">Not yet researched means we can't yet offer a destination with confidence — registry addresses and faxes are often stale. Research a provider to establish one: when the evidence supports a current location and fax, it moves up to Recommended or Needs review and can be chosen. Each run is a paid AI call (about 1–2 minutes) and needs the demo key.</p>
-      {locked && (
+      <summary>Raw registry candidates: {list.length} {label} matches in range — not corroborated</summary>
+      <p className="pi-muted">Registry addresses and faxes are often stale, so these can't be offered with confidence yet. The nearest ones were checked against public web pages automatically; <strong>AI research</strong> (about 1–2 minutes each) can dig further. When evidence supports a current location and fax, the provider moves up to Recommended or Needs review.</p>
+      {locked && operatorMode() && (
         <form className="pi-keyform rd-key" onSubmit={(e) => { e.preventDefault(); setDemoKey(key); list.filter((r) => getResearch(r.npi, ctx).code === "locked").forEach((r) => startResearch(r.npi, ctx, false)); }}>
-          <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Demo access key" aria-label="Demo access key" />
+          <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Operator access key" aria-label="Operator access key" />
           <button className="pi-btn pi-btn-primary" type="submit">Unlock &amp; research</button>
         </form>
       )}
       <div className="rd-reg-list">
         {list.slice(0, shown).map((r) => {
           const rs = getResearch(r.npi, ctx);
+          const d = getDiscovery(r.npi, ctx);
+          const tag = !d ? "Registry match — not checked" : d.status === "running" ? "Checking public web…" : d.status === "error" || d.log?.outcome === "search_failed" ? "Public-web check failed — not evidence of absence" : "Public web checked — not corroborated";
           return (
             <div key={r.npi} className="rd-reg">
-              <span className="rd-reg-name">{r.name}{r.credential && <span className="pi-cred">{r.credential}</span>}<span className="rd-reg-tag">Registry match — not yet researched</span></span>
+              <span className="rd-reg-name">{r.name}{r.credential && <span className="pi-cred">{r.credential}</span>}<span className="rd-reg-tag">{tag}</span></span>
               <span className="pi-muted">{r.nearest.distanceMi} mi · {r.nearest.organization ?? r.nearest.city}</span>
               <span className="pi-muted pi-mono">{r.nearest.bestFax ? `NPI fax ${r.nearest.bestFax.number}` : "no NPI fax"}</span>
               {isRunning(rs) ? <span className="rd-reg-status"><span className="pi-spinner" /> Researching…</span>
-                : rs.stage === "error" ? <span className="rd-reg-status pi-bad" title={rs.error ?? ""}>{rs.code === "locked" ? "Needs demo key" : `Research failed${rs.error ? ` — ${rs.error}` : ""}`} {rs.code !== "locked" && <button className="pi-link" onClick={() => startResearch(r.npi, ctx, false)}>Retry</button>}</span>
-                : <button className="pi-btn" onClick={() => startResearch(r.npi, ctx, false)}><Icon name="sparkle" /> Research</button>}
+                : rs.stage === "error" ? <span className="rd-reg-status pi-bad" title={rs.error ?? ""}>{rs.code === "locked" ? "AI research needs operator access" : `Research failed${rs.error ? ` — ${rs.error}` : ""}`} {rs.code !== "locked" && <button className="pi-link" onClick={() => startResearch(r.npi, ctx, false)}>Retry</button>}</span>
+                : <button className="pi-btn" onClick={() => startResearch(r.npi, ctx, false)}><Icon name="sparkle" /> AI research</button>}
             </div>
           );
         })}

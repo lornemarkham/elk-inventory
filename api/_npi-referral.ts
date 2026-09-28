@@ -90,7 +90,7 @@ export function pageSupportsReferralFax(pageText: string, digits: string, referr
   return false;
 }
 
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   return html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&");
 }
 
@@ -143,10 +143,13 @@ function stems(s: string): Set<string> {
   const t = s.toLowerCase().replace(/\bent\b|ear,? nose,? (and|&) throat|head (and|&) neck|\b(neuro)?otolog\w*|\brhinolog\w*|\blaryngolog\w*/g, " otolaryngology ");
   return new Set(t.split(/[^a-z]+/).filter((w) => w.length >= 5 && !GENERIC.has(w)).map((w) => w.slice(0, 6)));
 }
+// NPPES files neurology under the combined board "Psychiatry & Neurology, …", so
+// the board name is dropped first: "psychiatry" must not overlap a Neurology taxonomy.
+const taxonomySpecialty = (desc: string) => desc.replace(/^Psychiatry\s*(&|and)\s*Neurology,\s*/i, "");
 export function specialtyReallyDiffers(stated: string | null, taxonomies: string[]): boolean {
   if (!stated) return false;
   const a = stems(stated);
-  const b = stems(taxonomies.join(" "));
+  const b = stems(taxonomies.map(taxonomySpecialty).join(" "));
   return a.size > 0 && ![...a].some((x) => b.has(x));
 }
 
@@ -171,7 +174,7 @@ function sameAddress(a: { line1: string; postalCode: string; city: string }, b: 
 
 // ── Source families ──────────────────────────────────────────────────────────
 
-const AGGREGATOR = /(npiprofile|npichecker|npir\.org|healthprovidersdata|npidb|hipaaspace|npino|opennpi|npi-lookup|npinumberlookup|npiregistry\.us|nppes\.us|findnpi|npi\.report|zoominfo|bloomberg|healthgrades|vitals\.com|webmd|sharecare|wellness\.com|caredash|md\.com|ratemds|doctor\.com|health\.usnews|usnews\.com|castleconnolly|medicarelist|healthcare4ppl|providerdata|opengovus|buzzfile|mapquest|yellowpages|yelp|manta\.com|birdeye|chamberofcommerce)/i;
+export const AGGREGATOR = /(npiprofile|npichecker|npir\.org|healthprovidersdata|npidb|hipaaspace|npino|opennpi|npi-lookup|npinumberlookup|npiregistry\.us|nppes\.us|findnpi|npi\.report|zoominfo|bloomberg|healthgrades|vitals\.com|webmd|sharecare|wellness\.com|caredash|md\.com|ratemds|doctor\.com|health\.usnews|usnews\.com|castleconnolly|medicarelist|healthcare4ppl|providerdata|opengovus|buzzfile|mapquest|yellowpages|yelp|manta\.com|birdeye|chamberofcommerce)/i;
 const FEDERAL = /(^|\.)(cms\.gov|medicare\.gov|hhs\.gov)$/i;
 const FEDERAL_CARE = /(^|\.)(va\.gov|ihs\.gov)$/i; // federal health systems are first-party for their own facilities
 const PAYER = /(uhc\.com|uhcprovider|myuhc|aetna\.com|cigna\.com|humana\.com|anthem\.com|bcbs|bluecross|blueshield|premera\.com|regence\.com|molinahealthcare|coordinatedcarehealth|wellcare|ambetter|amerigroup|centene|healthnet|hioscar|oscar\.com|harvardpilgrim|tuftshealthplan|point32health|pacificsource|modahealth|healthplans\.providence|kaiserpermanente\.org\/.*provider|carefirst|emblemhealth|highmark|wellpoint|caresource|medica\.com|priorityhealth|geisinger.*plan|mass\.gov\/.*masshealth)/i;
@@ -372,7 +375,7 @@ const EXTRACT_SCHEMA = {
   },
 };
 
-function normUrl(u: string): string {
+export function normUrl(u: string): string {
   try {
     const url = new URL(u);
     url.hash = "";
@@ -383,7 +386,7 @@ function normUrl(u: string): string {
   }
 }
 
-function domainOf(u: string): string {
+export function domainOf(u: string): string {
   try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; }
 }
 

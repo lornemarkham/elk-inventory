@@ -11,11 +11,11 @@ function npiDevApi(): Plugin {
     apply: 'serve',
     configureServer(server) {
       // Server-only secrets for the api/ handlers (e.g. SRFAX_*) from .env.local — never VITE_-prefixed, never bundled.
-      for (const [k, v] of Object.entries(loadEnv(server.config.mode, server.config.root, ['SRFAX_', 'OPENAI_', 'NPI_']))) process.env[k] ??= v
+      for (const [k, v] of Object.entries(loadEnv(server.config.mode, server.config.root, ['SRFAX_', 'OPENAI_', 'NPI_', 'BRAVE_']))) process.env[k] ??= v
       server.middlewares.use(async (req, res, next) => {
         // Mirror vercel.json's /npi-list rewrite.
-        if (req.url && /^\/npi-list(\/(referral-demo|opportunity))?\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list(\/(referral-demo|opportunity))?\/?/, '/npi-list/index.html')
-        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research|fax))(\?.*)?$/)
+        if (req.url && /^\/npi-list(\/(referral-demo|opportunity|fax-settings))?\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list(\/(referral-demo|opportunity|fax-settings))?\/?/, '/npi-list/index.html')
+        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|nearby|research|fax|discover))(\?.*)?$/)
         if (!m) return next()
         try {
           const mod = await server.ssrLoadModule(`/api/${m[1]}.ts`)

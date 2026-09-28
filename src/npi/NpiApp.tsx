@@ -327,7 +327,7 @@ function DestinationRow({ r, ctx, onOpen }: { r: NearbyResult; ctx: SearchContex
         ) : view?.research ? (
           <span className="pi-dest-status pi-good"><Icon name="check" size={13} /> Researched{view.research.cached ? " (cached)" : ""}</span>
         ) : rs.stage === "error" ? (
-          <span className="pi-dest-status pi-bad" title={rs.error ?? ""}><Icon name="alert" size={13} /> {rs.code === "locked" ? "Needs demo key — open details" : "Research failed"}</span>
+          <span className="pi-dest-status pi-bad" title={rs.error ?? ""}><Icon name="alert" size={13} /> {rs.code === "locked" ? "AI research needs operator access" : "Research failed"}</span>
         ) : (
           <button className="pi-btn" onClick={() => startResearch(r.npi, ctx, false)}><Icon name="sparkle" /> Research</button>
         )}

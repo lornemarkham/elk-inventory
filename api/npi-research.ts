@@ -21,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
       const ping = setInterval(() => emit({ type: "ping" }), 8000);
       try {
         if (npi.length !== 10) emit({ type: "error", message: "An NPI is exactly 10 digits." });
-        else if (!keyOk) emit({ type: "error", code: "locked", message: "Web research uses paid AI calls, so it needs the demo access key." });
+        else if (!keyOk) emit({ type: "error", code: "locked", message: "AI research uses paid AI calls and is limited to authorized operators in this POC." });
         else {
           const r = await researchProvider(npi, fresh, emit, () => takeResearchSlot(clientIp(req)));
           if (r) {

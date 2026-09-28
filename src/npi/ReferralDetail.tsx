@@ -3,7 +3,7 @@
 // then provider identity / licence / specialty / affiliations, then evidence,
 // and the raw NPI record last.
 import { useEffect, useState } from "react";
-import { fetchView, getDemoKey, setDemoKey, type SearchContext } from "./api";
+import { fetchView, getDemoKey, operatorMode, setDemoKey, type SearchContext } from "./api";
 import type { EvidenceSource, FieldConfidence, LicenseCheck, NpiRelationship, PracticeLocation, ProviderDetail, ReferralResearch, ReferralView } from "./types";
 import { Empty } from "./NpiApp";
 import { hydrateCached, isRunning, startResearch, useResearch, type ResearchState } from "./research";
@@ -97,11 +97,11 @@ function Progress({ rs, npi, ctx }: { rs: ResearchState; npi: string; ctx: Searc
   if (rs.stage === "error") {
     return (
       <section className="pi-card pi-progress pi-progress-error">
-        <div className="pi-progress-title"><Icon name={rs.code === "locked" ? "key" : "alert"} /> {rs.code === "locked" ? "Demo access key needed" : "Research couldn't finish"}</div>
+        <div className="pi-progress-title"><Icon name={rs.code === "locked" ? "key" : "alert"} /> {rs.code === "locked" ? "Operator access needed" : "Research couldn't finish"}</div>
         <p>{rs.error}</p>
-        {rs.code === "locked" && (
+        {rs.code === "locked" && operatorMode() && (
           <form className="pi-keyform" onSubmit={(e) => { e.preventDefault(); setDemoKey(key); startResearch(npi, ctx, false); }}>
-            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Demo access key" aria-label="Demo access key" />
+            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Operator access key" aria-label="Operator access key" />
             <button className="pi-btn pi-btn-primary" type="submit">Unlock &amp; research</button>
           </form>
         )}

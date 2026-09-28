@@ -255,6 +255,9 @@ export interface Conflict {
 export interface ReferralResearch {
   npi: string;
   researchedAt: string;
+  // "public_web" = the cheap pass (Brave search + fetched pages, no AI; api/_npi-discover.ts).
+  // Absent = paid AI research.
+  method?: "public_web";
   summary: string;
   relationship: { kind: NpiRelationship; explanation: string; sourceIds: string[] };
   identity: FieldConfidence & { confirmed: boolean; conflict: boolean };
@@ -269,6 +272,49 @@ export interface ReferralResearch {
   searchQueries: string[];
   usage: { researchModel: string; extractModel: string; searchCalls: number; inputTokens: number; outputTokens: number; durationMs: number };
   cached?: boolean;
+}
+
+// ── Cheap public-web pass (api/_npi-discover.ts) ─────────────────────────────
+// Search discovers URLs; only fetched page text is evidence. There is
+// deliberately no snippet/description field anywhere in these types.
+
+export interface WebSearchHit {
+  url: string;
+  title?: string;
+}
+
+export interface DiscoveryPage {
+  url: string;
+  finalUrl: string;
+  domain: string;
+  title: string;
+  fetched: "ok" | "failed" | "not_html";
+  httpStatus: number | null;
+  nameOnPage: boolean;
+  npiOnPage: boolean;
+  specialtyOnPage: boolean;
+  orgOnPage: string | null;
+  referralPage: boolean;
+  accepted: boolean;
+  reason: string;
+  family: SourceFamily;
+  familyReason: string;
+  evidence?: string; // exactly what was found on the page (accepted pages only)
+}
+
+export interface DiscoveryLog {
+  npi: string;
+  query: string;
+  search: { status: "ok" | "not_configured" | "timeout" | "http_error" | "error"; error: string | null; hits: WebSearchHit[] };
+  candidates: { url: string; title?: string; skip: string | null; priority: number; fetched: boolean }[];
+  pages: DiscoveryPage[];
+  outcome: "corroborated" | "not_corroborated" | "search_failed" | "no_results";
+  durationMs: number;
+}
+
+export interface DiscoverResponse {
+  log: DiscoveryLog;
+  view: ReferralView | null; // re-scored with the public-web evidence; null when nothing was corroborated
 }
 
 export interface ReferralView {

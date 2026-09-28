@@ -101,7 +101,7 @@ export default function FaxSettings() {
                 <div className="pi-muted">Submitted {time(last.submittedAt)}{last.status?.dateSent && <> · SRFax DateSent {last.status.dateSent}</>}{last.status?.pages != null && <> · {last.status.pages} page{last.status.pages === 1 ? "" : "s"}</>}{last.lastCheckedAt && <> · last checked {time(last.lastCheckedAt)}</>}</div>
                 {last.error && <div className="rd-live-err"><Icon name="alert" size={14} /> {last.error}</div>}
                 {last.faxId && last.statusToken && <button className="pi-link" onClick={refresh}>{polling ? <><span className="pi-spinner" /> Checking status…</> : "Check status now"}</button>}
-                <p className="pi-muted rd-fine">SRFax status is operational evidence about this transmission only. It changes no provider verification, destination confidence or referral fit.</p>
+                <p className="pi-muted rd-fine">SRFax status is operational evidence about this transmission only. It changes no provider verification, destination evidence or referral fit.</p>
               </div>
             )}
           </div>

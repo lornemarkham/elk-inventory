@@ -91,8 +91,8 @@ export const tone = (n: number) => (n >= 80 ? "good" : n >= 60 ? "ok" : "low");
 
 export function ScorePill({ label, score, onClick, active }: { label: string; score: number; onClick?: () => void; active?: boolean }) {
   return (
-    <button type="button" className={`pi-score pi-score-${tone(score)} ${active ? "pi-score-active" : ""}`} onClick={onClick} disabled={!onClick} title={onClick ? `Why ${score}%?` : undefined}>
-      <span className="pi-score-num">{score}%</span>
+    <button type="button" className={`pi-score pi-score-${tone(score)} ${active ? "pi-score-active" : ""}`} onClick={onClick} disabled={!onClick} title={onClick ? `Why ${score} rule points? (not a probability)` : "Rule points out of 100 — not a probability"}>
+      <span className="pi-score-num">{score} pts</span>
       <span className="pi-score-label">{label}</span>
     </button>
   );
@@ -111,7 +111,7 @@ export function Breakdown({ score, title }: { score: ConfidenceScore; title?: st
           </li>
         ))}
       </ul>
-      <div className="pi-why-total">= {score.score}% <span>({score.band}) · sum of the points above, clamped to 0–100. A transparent heuristic, not a calibrated probability.</span></div>
+      <div className="pi-why-total">= {score.score} pts <span>· sum of the rule points above, clamped to 0–100. Hand-set weights, never calibrated against outcomes: {score.score} pts does NOT mean a {score.score}% chance of being right.</span></div>
     </div>
   );
 }

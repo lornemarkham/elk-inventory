@@ -376,10 +376,12 @@ export async function discoverProvider(
   const fetcher = opts.fetcher ?? fetch;
   const query = discoveryQuery(p, def, hints, near);
   const s = await (opts.search ?? braveSearch)(query, { country: "US", limit: MAX_HITS, fetcher });
+  const searchMs = Date.now() - started;
   const log: DiscoveryLog = { npi: p.npi, query, search: { status: s.status, error: s.status === "ok" ? null : s.error, hits: s.status === "ok" ? s.hits : [] }, candidates: [], pages: [], outcome: "not_corroborated", durationMs: 0 };
   if (s.status !== "ok") {
     log.outcome = "search_failed";
     log.durationMs = Date.now() - started;
+    log.timings = { searchMs, fetchMs: 0 };
     return { log, research: null }; // never cached: a failure is not a finding
   }
   if (!s.hits.length) log.outcome = "no_results";
@@ -400,6 +402,7 @@ export async function discoverProvider(
   log.pages = pages.map(({ locations: _l, ...rest }) => ({ ...rest, evidence: rest.accepted ? pageSummary(p, pages.find((x) => x.url === rest.url)!) : undefined }));
   if (research) log.outcome = "corroborated";
   log.durationMs = Date.now() - started;
+  log.timings = { searchMs, fetchMs: log.durationMs - searchMs };
   const out = { log, research };
   if (!opts.fetcher) cache.set(cacheKey, { at: Date.now(), ...out });
   return out;

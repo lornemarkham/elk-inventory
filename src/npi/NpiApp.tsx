@@ -107,7 +107,7 @@ export default function NpiApp() {
       {!route.npi && !route.specialty && route.q && <NameResults q={route.q} onOpen={(p) => navigate({ ...route, npi: p.npi })} />}
 
       <footer className="pi-foot">
-        Demonstration only — no patient data is used or stored. Provider data: CMS NPPES (federal NPI Registry, via Anthropic's NPI Registry connector and the CMS API); licences: Washington State DOH open data; distances: US Census Geocoder and ZIP centroids; contact evidence: open-web research. Provider verification and destination confidence are transparent heuristics, not calibrated probabilities, and neither rates a clinician's quality.
+        Demonstration only — no patient data is used or stored. Provider data: CMS NPPES (federal NPI Registry, via Anthropic's NPI Registry connector and the CMS API); licences: Washington State DOH open data; distances: US Census Geocoder and ZIP centroids; contact evidence: open-web research. Provider verification and destination evidence are hand-weighted rule-point totals (0–100), not probabilities and never calibrated, and neither rates a clinician's quality.
       </footer>
     </div>
   );

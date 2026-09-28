@@ -1,0 +1,1817 @@
+[
+ {
+  "npi": "1033377064",
+  "name": "David Louis Horn, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology (primary; IN 01058253A)",
+    "Otolaryngology, Pediatric Otolaryngology (WA MD60143669)",
+    "Otolaryngology (WA MD60143669)",
+    "Otolaryngology (PA MD436779)",
+    "Otolaryngology, Pediatric Otolaryngology (PA MD436779)"
+   ],
+   "addresses": [
+    {
+     "line1": "4800 Sand Point Way NE, Mailstop W-7729",
+     "city": "Seattle",
+     "zip": "981053901",
+     "phone": "2069872105",
+     "fax": "2069873878"
+    }
+   ],
+   "lastUpdated": "2010-06-07"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.60143669",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "02/04/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber='MD.MD.60143669'"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.seattlechildrens.org/directory/david-l-horn/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Primary Office Seattle Children's - Otolaryngology-ENT 4800 Sand Point Way NE OA.9.220 Seattle, WA 98105 Tel: 206-987-2105"
+   },
+   {
+    "url": "https://otolaryngology.uw.edu/our-people/faculty/david-horn-md-ms",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Primary Office Seattle Children's Hospital 4800 Sand Point Way NE"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults."
+   },
+   {
+    "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Complete the New Appointment Request Form (PDF) (DOC) and fax to 206-985-3121 or 866-985-3121 (toll-free)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Pediatric Otolaryngology (Otolaryngology; Cochlear Implant Program co-director)",
+   "url": "https://www.seattlechildrens.org/directory/david-l-horn/",
+   "quote": "sees patients with hearing loss, ear disorders, balance issues, as well as other general pediatric otolaryngological problems."
+  },
+  "currentPractice": [
+   {
+    "name": "Seattle Children's - Otolaryngology-ENT",
+    "line1": "4800 Sand Point Way NE, OA.9.220",
+    "city": "Seattle",
+    "zip": "98105",
+    "url": "https://www.seattlechildrens.org/directory/david-l-horn/",
+    "quote": "Seattle Children's - Otolaryngology-ENT 4800 Sand Point Way NE OA.9.220 Seattle, WA 98105"
+   }
+  ],
+  "officeFax": [],
+  "referralFax": {
+   "digits": "2069853121",
+   "label": "Fax:",
+   "location": "Seattle Children's (system-wide central referral intake, all clinics)",
+   "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+   "quote": "Fax: Complete the New Appointment Request Form (PDF) (DOC) and fax to 206-985-3121 or 866-985-3121 (toll-free)"
+  },
+  "seesAdults": "no",
+  "seesAdultsEvidence": "Seattle Children's Otolaryngology refer page: 'We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults.'",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: he is a paediatric otolaryngologist whose only listed practice is Seattle Children's, which explicitly does not take new patients aged 21 or older, so it cannot take a 46-year-old."
+  },
+  "notes": "The NPPES fax 206-987-3878 does not appear on any official page checked. The referral fax 206-985-3121 is Seattle Children's system-wide intake fax, not specific to Otolaryngology, and is only usable for patients within its age range. The UW dept page also lists 'Otology and Neurotology' as a specialty, but his only listed office is Seattle Children's; no adult UW clinic location was found for him. The site-wide UW dept footer fax (206) 598-6611 appears on his UW page but is not his office.",
+  "failures": [
+   "https://www.seattlechildrens.org/healthcare-professionals/refer/otolaryngology/: HTTP 404 (the correct page is /clinics/otolaryngology/refer-a-patient/)"
+  ]
+ },
+ {
+  "npi": "1033504196",
+  "name": "Jason Sun-Hyung Park, PHD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (primary, TN 63507)",
+    "Otolaryngology, Plastic Surgery within the Head & Neck (TN 63507)",
+    "Otolaryngology, Pediatric Otolaryngology (WA ML.61061354)"
+   ],
+   "addresses": [
+    {
+     "line1": "3601 THE VANDERBILT CLINIC",
+     "city": "NASHVILLE",
+     "zip": "372323901",
+     "phone": "615-322-3000",
+     "fax": ""
+    },
+    {
+     "line1": "3841 GREEN HILLS VILLAGE DR STE 200 (mailing)",
+     "city": "NASHVILLE",
+     "zip": "372152691",
+     "phone": "",
+     "fax": ""
+    },
+    {
+     "line1": "4800 SAND POINT WAY NE (practiceLocation)",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-2105",
+     "fax": ""
+    },
+    {
+     "line1": "2233 POST ST FL 3 (practiceLocation)",
+     "city": "SAN FRANCISCO",
+     "zip": "941153470",
+     "phone": "415-353-8753",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2024-04-09"
+  },
+  "licence": {
+   "credentialNumber": "MDRE.ML.61061354",
+   "type": "Physician And Surgeon Residency Limited License",
+   "status": "Expired",
+   "expires": "07/31/2021",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber like '%2561061354%25'"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.childrenshospitalvanderbilt.org/doctors/park-jason",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Jason S. Park MD, PhD ... Pediatric Otolaryngology ... Vanderbilt Children's Otolaryngology - Head and Neck Surgery 2200 Children's Way, 7th Floor Nashville, TN 37232"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/directory/jason-s-park",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "HTTP 404"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Pediatric Otolaryngology - Head and Neck Surgery",
+   "url": "https://www.childrenshospitalvanderbilt.org/doctors/park-jason",
+   "quote": "Services Pediatric Otolaryngology - Head and Neck Surgery"
+  },
+  "currentPractice": [
+   {
+    "name": "Vanderbilt Children's Otolaryngology - Head and Neck Surgery",
+    "line1": "2200 Children's Way, 7th Floor",
+    "city": "Nashville",
+    "zip": "37232",
+    "url": "https://www.childrenshospitalvanderbilt.org/doctors/park-jason",
+    "quote": "Vanderbilt Children's Otolaryngology - Head and Neck Surgery 2200 Children's Way, 7th Floor Nashville, TN 37232 (615) 936-8176"
+   },
+   {
+    "name": "Vanderbilt Children's Otolaryngology - Head and Neck Surgery Murfreesboro",
+    "line1": "2102 West Northfield Boulevard",
+    "city": "Murfreesboro",
+    "zip": "37129",
+    "url": "https://www.childrenshospitalvanderbilt.org/doctors/park-jason",
+    "quote": "Vanderbilt Children's Otolaryngology - Head and Neck Surgery Murfreesboro 2102 West Northfield Boulevard"
+   },
+   {
+    "name": "Vanderbilt Children's Otolaryngology - Head and Neck Surgery One Hundred Oaks",
+    "line1": "719 Thompson Lane, Suite 30300",
+    "city": "Nashville",
+    "zip": "37204",
+    "url": "https://www.childrenshospitalvanderbilt.org/doctors/park-jason",
+    "quote": "719 Thompson Lane, Suite 30300 Nashville, TN 37204 (615) 936-8176"
+   }
+  ],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "no",
+  "seesAdultsEvidence": "Official page is Monroe Carell Jr. Children's Hospital at Vanderbilt; all locations are 'Vanderbilt Children's ...' clinics; expertise listed as 'Pediatric Hearing Loss', 'Pediatric Otolaryngology'. (No explicit age statement in page text.)",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: he now practises pediatric otolaryngology in Tennessee (Vanderbilt Children's), his only WA credential was a residency-limited licence that expired 07/31/2021, so he is neither local nor adult-facing."
+  },
+  "notes": "PRACTISES IN ANOTHER STATE (TN). NPPES name lists 'PHD' credential but he is MD, PhD. Seattle 4800 Sand Point Way NE (Seattle Children's) practiceLocation is from his UW residency/fellowship era. No fax on Vanderbilt page. WebFetch summary claimed 'Children only' but that string is not in the page text - not used.",
+  "failures": [
+   "Seattle Children's directory slugs jason-s-park, jason-sun-hyung-park -> 404",
+   "No fax found on Vanderbilt Children's provider page"
+  ]
+ },
+ {
+  "npi": "1104907468",
+  "name": "Jonathan A Perkins",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology (licence OP00001440 WA)",
+    "Otolaryngology, Pediatric Otolaryngology (licence OP00001440 WA, primary)"
+   ],
+   "addresses": [
+    {
+     "line1": "4500 SAND POINT WAY NE #100 [MAILING]",
+     "city": "SEATTLE",
+     "zip": "981053900",
+     "phone": "",
+     "fax": ""
+    },
+    {
+     "line1": "4800 SAND POINT WAY NE",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-2000",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2009-02-12"
+  },
+  "licence": {
+   "credentialNumber": "DO.OP.00001440",
+   "type": "Osteopathic Physician & Surgeon License",
+   "status": "Active",
+   "expires": "01/02/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber%20in%20(%27DO.OP.00001440%27)"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.seattlechildrens.org/directory/jonathan-a-perkins/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Jonathan A Perkins, DO Accepting New Patients Specialties Otolaryngology Vascular Anomalies Craniofacial Center Cranial Base Fetal Center"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Seattle Children's Hospital ... Physical Address 4800 Sand Point Way NE Seattle, WA 98105 ... Fax 206-985-3392"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults."
+   },
+   {
+    "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "fax to 206-985-3121 or 866-985-3121 (toll-free)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otolaryngology (pediatric); vascular anomalies focus",
+   "url": "https://www.seattlechildrens.org/directory/jonathan-a-perkins/",
+   "quote": "Jonathan A. Perkins, DO, practices pediatric otolaryngology at Seattle Childrens Hospital ... He practices at both the Bellevue and Sand Point campuses."
+  },
+  "currentPractice": [
+   {
+    "name": "Seattle Children's Hospital - Otolaryngology-ENT (OA.9.220)",
+    "line1": "4800 Sand Point Way NE",
+    "city": "Seattle",
+    "zip": "98105",
+    "url": "https://www.seattlechildrens.org/directory/jonathan-a-perkins/",
+    "quote": "Primary Office Seattle Children's - Otolaryngology-ENT 4800 Sand Point Way NE OA.9.220 Seattle, WA 98105 Tel: 206-987-2105"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2069853392",
+    "label": "Fax",
+    "location": "4800 Sand Point Way NE",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Hospital ... Appointment 206-987-2105 A provider referral is required. Fax Numbers Fax 206-985-3392"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   },
+   {
+    "digits": "4257836205",
+    "label": "Fax",
+    "location": "1815 13th St., Everett, WA 98201",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's North Clinic in Everett ... Fax Numbers Fax 425-783-6205"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   }
+  ],
+  "referralFax": {
+   "digits": "2069853121",
+   "label": "Fax: Complete the New Appointment Request Form ... and fax to 206-985-3121 or 866-985-3121 (toll-free)",
+   "location": "Seattle Children's system-wide referral intake (not location-specific); ENT page links here",
+   "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+   "quote": "Fax: Complete the New Appointment Request Form (PDF) (DOC) and fax to 206-985-3121 or 866-985-3121 (toll-free), along with any additional notes"
+  },
+  "seesAdults": "no",
+  "seesAdultsEvidence": "Seattle Children's ENT refer-a-patient page (https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/): \"We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults.\"",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "Provider practises pediatric otolaryngology at Seattle Children's, which explicitly does not take new patients 21+; a 46-year-old must be referred to an adult ENT."
+  },
+  "notes": "NPPES source: https://npiregistry.cms.hhs.gov/api/?version=2.1&number=1104907468. Page shows 'Accepting New Patients'. Also practises at Bellevue Clinic and Surgery Center, 1500 116th Ave. NE, Bellevue WA 98004 (ENT contact page fax there: 425-451-0214, label 'Fax'). NPPES licence 'OP00001440' maps to DOH 'DO.OP.00001440' (not 'OP.OP.'); a second DO Jonathan Perkins (DO.OP.60766695) exists in DOH and is a different person. Licence: DOH credential prefix is DO.OP., not OP.OP..",
+  "failures": [
+   "https://www.seattlechildrens.org/doctors/<slug>/ returned 404 (correct path is /directory/<slug>/)",
+   "uwmedicine.org/bios/<slug> returned HTTP 403 to curl and WebFetch; could not check whether UW Medicine lists any adult clinic for this provider",
+   "ENT contact page 'Fax' labels are unqualified (not stated as referral fax); the referral fax comes from the system-wide Refer a Patient page"
+  ]
+ },
+ {
+  "npi": "1215375621",
+  "name": "Kathleyn Allison Brandstetter, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "207Y00000X Otolaryngology (primary, WA lic MD60847129)"
+   ],
+   "addresses": [
+    {
+     "line1": "3553 WHIPPLE RD BLDG B2ND (LOCATION)",
+     "city": "UNION CITY, CA",
+     "zip": "945871507",
+     "phone": "2039129960",
+     "fax": ""
+    },
+    {
+     "line1": "1959 NE PACIFIC ST (practiceLocations)",
+     "city": "SEATTLE, WA",
+     "zip": "98195",
+     "phone": "2065984300",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2022-01-26"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.60847129",
+   "type": "Physician And Surgeon License",
+   "status": "Expired",
+   "expires": "02/08/2021",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.60847129')"
+  },
+  "officialPages": [
+   {
+    "url": "https://mydoctor.kaiserpermanente.org/ncal/doctor/kathleynbrandstetter",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "My Practice Locations San Leandro Medical Center Head And Neck Surgery 3rd Floor 2500 Merced Street San Leandro, CA 94577 1-510-675-4241"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Head and Neck Surgery; Skin Cancer Care (fellowship-trained facial plastic and reconstructive surgeon)",
+   "url": "https://mydoctor.kaiserpermanente.org/ncal/doctor/kathleynbrandstetter",
+   "quote": "My Specialties Head and Neck Surgery Skin Cancer Care"
+  },
+  "currentPractice": [
+   {
+    "name": "Kaiser Permanente San Leandro Medical Center - Head And Neck Surgery",
+    "line1": "2500 Merced Street, 3rd Floor",
+    "city": "San Leandro, CA",
+    "zip": "94577",
+    "url": "https://mydoctor.kaiserpermanente.org/ncal/doctor/kathleynbrandstetter",
+    "quote": "San Leandro Medical Center Head And Neck Surgery 3rd Floor 2500 Merced Street San Leandro, CA 94577"
+   }
+  ],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "Kaiser page 'Plans Accepted' lists 'Senior Advantage' (Medicare) - adult patients; but location is in California, not WA.",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: She now practises at Kaiser Permanente in San Leandro, CA (facial plastic/head & neck focus) and her WA licence expired 02/08/2021, so she is not a reachable Seattle referral destination."
+  },
+  "notes": "Kaiser page: 'License A162557 - Active ... Issued in California'; 'Group Affiliation The Permanente Medical Group'; 'National Provider Identifier 1215375621'; 'Fellowship University of Washington Medical Center, Seattle, WA'; 'Last directory update: 09/27/26'. NPPES practiceLocation 1959 NE Pacific St Seattle (UWMC) is a stale fellowship-era address. Kaiser page fetched via r.jina.ai reader (direct curl returned empty JS shell). Directories (Healthgrades, US News) also show San Leandro/Union City, CA - not used as ground truth.",
+  "failures": [
+   "No WA DOH credential other than expired MD.MD.60847129 found by last-name search",
+   "uwmedicine.org/bios/kathleyn-brandstetter returned 403 (not listed / blocked)",
+   "Kaiser page shows no fax number"
+  ]
+ },
+ {
+  "npi": "1255421145",
+  "name": "Andrew F Inglis",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (primary, WA MD00019970)",
+    "Otolaryngology (WA MD00019970)"
+   ],
+   "addresses": [
+    {
+     "line1": "4800 SAND POINT WAY NE",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-2000",
+     "fax": ""
+    },
+    {
+     "line1": "4500 SAND POINT WAY NE #100 (mailing)",
+     "city": "SEATTLE",
+     "zip": "981053900",
+     "phone": "",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2009-02-05"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.00019970",
+   "type": "Physician And Surgeon License",
+   "status": "Expired",
+   "expires": "02/15/2025",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.00019970')"
+  },
+  "officialPages": [
+   {
+    "url": "https://otolaryngology.uw.edu/our-people/faculty/andrew-inglis-md/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Andrew F. Inglis , MD PROFESSOR EMERITUS ... His subspecialty in pediatric otolaryngology has been the management of children with complex airway problems"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/your-care-team/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Lists 13 physicians (Amit D Bhrany, MD ... Sheng Zhou, MD); no Inglis"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Pediatric otolaryngology (Professor Emeritus; no active clinic listed)",
+   "url": "https://otolaryngology.uw.edu/our-people/faculty/andrew-inglis-md/",
+   "quote": "Clinical Interests Complex airway problems in children, specifically laryngeal stenosis."
+  },
+  "currentPractice": [],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "no",
+  "seesAdultsEvidence": "UW emeritus page: pediatric otolaryngology, 'management of children with complex airway problems'; no current clinical location listed.",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: WA licence expired 02/15/2025, UW lists him as Professor Emeritus with no active clinic, and his practice was pediatric airway surgery, not adult otology."
+  },
+  "notes": "UW page shows a generic department contact block 'University of Washington Medical Center 1959 NE Pacific Street, 3rd Floor, NE 300 ... Fax: (206) 598-6611' - this is the department contact, not a practice location for Dr. Inglis, so not recorded as his office fax. DOH name 'Inglis, Andrew Franklin'.",
+  "failures": [
+   "Seattle Children's directory slugs andrew-inglis, andrew-f-inglis, andrew-f-inglis-jr -> 404",
+   "Not on Seattle Children's ENT care-team page",
+   "site:seattlechildrens.org search found only publication citations"
+  ]
+ },
+ {
+  "npi": "1427046473",
+  "name": "Anifat O. Balogun, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology (primary, WA MD00039276)"
+   ],
+   "addresses": [
+    {
+     "line1": "6850 35TH AVE NE STE 4",
+     "city": "SEATTLE",
+     "zip": "981157344",
+     "phone": "206-525-0903",
+     "fax": "866-497-3901"
+    }
+   ],
+   "lastUpdated": "2012-09-07"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.00039276",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "09/03/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.00039276')"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.skinmdseattle.com/about-5-1",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Through her clinical practice at SkinMD Seattle Laser & Aesthetic Medical Clinic, Dr. Anifat Balogun provides extensive knowledge about the field of Regenerative and Aesthetic Medicine"
+   },
+   {
+    "url": "https://www.skinmdseattle.com/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "\"streetAddress\":\"3327 Northeast 125th Street\" ... \"postalCode\":\"98125-4587\" ... \"telephone\":\"206-946-6720\" (structured data)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Aesthetic / regenerative medicine (ENT-trained)",
+   "url": "https://www.skinmdseattle.com/about-5-1",
+   "quote": "Her expertise is noninvasive and minimally invasive, balanced and natural face and body rejuvenation"
+  },
+  "currentPractice": [
+   {
+    "name": "SkinMD Seattle Laser & Aesthetic Medical Clinic",
+    "line1": "3327 Northeast 125th Street",
+    "city": "Seattle",
+    "zip": "98125",
+    "url": "https://www.skinmdseattle.com/",
+    "quote": "\"businessLocationFormatted\":\"3327 Northeast 125th Street, Seattle, WA, USA\""
+   }
+  ],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "SkinMD bio: 'management of acne, unwanted hair and hyperpigmentation skin issues in men and women with skin of color' (aesthetic practice, not ENT).",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: her only official current page describes an aesthetic/laser clinic with no otology or hearing services, and no official page confirms an active ENT practice at the NPPES 6850 35th Ave NE address (NPPES last updated 2012)."
+  },
+  "notes": "DOH licence Active but actionTaken='Pending'. NPPES address 6850 35th Ave NE Ste 4 (fax 866-497-3901) is 13+ years stale; directories (yellowpages) associate that address with 'Northwest Pediatric Otolaryngology Group'; Zocdoc lists 'NW Otolaryngology Associates & SkinMD' with Seattle+Woodinville offices and 3327 NE 125th St Ste 103 - not acceptable ground truth. No official ENT practice website found. SkinMD pages show no fax.",
+  "failures": [
+   "No official website found for 'NW Otolaryngology Associates' or 'Northwest Pediatric Otolaryngology Group'",
+   "skinmdseattle.com/contact returned no parsable address/fax",
+   "No fax on any SkinMD page"
+  ]
+ },
+ {
+  "npi": "1437512704",
+  "name": "Madeleine Perkins Strohl, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "208600000X Surgery (primary, WA MD61493073)",
+    "207Y00000X Otolaryngology (WA MD61493073)"
+   ],
+   "addresses": [
+    {
+     "line1": "1221 MADISON ST STE 1523 (LOCATION)",
+     "city": "SEATTLE, WA",
+     "zip": "981041342",
+     "phone": "2062926464",
+     "fax": "2062926498"
+    },
+    {
+     "line1": "PO BOX 25608 (MAILING)",
+     "city": "SALT LAKE CITY, UT",
+     "zip": "841250608",
+     "phone": "2063204476",
+     "fax": "2065687043"
+    }
+   ],
+   "lastUpdated": "2025-08-25"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.61399067",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "10/04/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=lastname='Strohl'"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.swedish.org/doctors/head-and-neck-surgery/wa/seattle/madeleine-strohl-1437512704",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Madeleine Strohl, MD Head and Neck Surgery ... Swedish Head and Neck Surgery 1221 Madison Street, Suite 1523 Seattle, WA 98104 (206) 292-6464"
+   },
+   {
+    "url": "https://www.swedish.org/locations/first-hill-campus/head-neck-surgery",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "1221 Madison St, Suite 1523, Seattle, WA 98104 ... 206-292-6464 Fax: 206-292-6498 Mon - Fri: 8:30 a.m. - 5 p.m."
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Head and Neck Surgery (head and neck oncologic and microvascular reconstructive surgeon)",
+   "url": "https://www.swedish.org/doctors/head-and-neck-surgery/wa/seattle/madeleine-strohl-1437512704",
+   "quote": "Dr. Strohl is a board-certified and fellowship-trained head and neck oncologic and microvascular reconstructive surgeon."
+  },
+  "currentPractice": [
+   {
+    "name": "Swedish Head and Neck Surgery (Swedish First Hill)",
+    "line1": "1221 Madison Street, Suite 1523",
+    "city": "Seattle, WA",
+    "zip": "98104",
+    "url": "https://www.swedish.org/doctors/head-and-neck-surgery/wa/seattle/madeleine-strohl-1437512704",
+    "quote": "Swedish Head and Neck Surgery 1221 Madison Street, Suite 1523, Seattle, WA 98104"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2062926498",
+    "label": "Fax:",
+    "location": "1221 Madison Street, Suite 1523",
+    "url": "https://www.swedish.org/locations/first-hill-campus/head-neck-surgery",
+    "quote": "206-292-6464 Fax: 206-292-6498"
+   }
+  ],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "Inferred: provider page lists Medicare Advantage plans accepted (e.g. 'Aetna Medicare Advantage HMO/PPO'); clinic focuses on adult head and neck cancers. No explicit 'adults' statement.",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: She and this clinic are focused on head and neck cancer and microvascular reconstruction; an asymmetric SNHL evaluation belongs with general ENT/otology, though a wrong-but-reachable ENT could redirect it."
+  },
+  "notes": "NPPES licence MD61493073 corresponds to DOH 'IMLC.MD.61493073' (Physician and Surgeon License Interstate Medical Licensure Compact), status Closed, expired 05/28/2025 - no 'MD.MD.61493073' row exists. Her current active WA licence is MD.MD.61399067 (first issued 05/28/2025). Fax matches NPPES location fax. Label is generic 'Fax:'. Page conditions list includes 'Acoustic Nerve Injury', 'Cochlear Nerve Damage' but bio is oncology-focused.",
+  "failures": [
+   "DOH query for credentialnumber 'MD.MD.61493073' returned no row; found via lastname search instead"
+  ]
+ },
+ {
+  "npi": "1447340823",
+  "name": "Alan W Langman, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology (primary; WA MD27287)"
+   ],
+   "addresses": [
+    {
+     "line1": "9714 3rd Ave NE Suite 100",
+     "city": "Renton (as recorded; zip 98115 is Seattle)",
+     "zip": "98115",
+     "phone": "2065235584",
+     "fax": "2065235882"
+    },
+    {
+     "line1": "PO Box 59325 (mailing)",
+     "city": "Renton",
+     "zip": "980582325",
+     "phone": "4252046958",
+     "fax": "2065235882"
+    }
+   ],
+   "lastUpdated": "2007-07-08"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.00027287",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "02/29/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber='MD.MD.00027287'"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.uwmedicine.org/bios/alan-langman",
+    "fetched": false,
+    "listsProvider": true,
+    "quote": "(HTTP 403; not read. Existence known only from a search-result title: 'Alan W. Langman M.D. | UW Medicine')"
+   },
+   {
+    "url": "https://pugetsoundhearing.com/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Coming Soon pugetsoundhearing.com We're under construction."
+   },
+   {
+    "url": "https://otolaryngology.uw.edu/clinics/northwest",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Providers ... Jacob Bloom, MD ... Karen Lin, MD ... Nilesh N. Shah, MD ... Sunil K. Ummat, MD (Langman not listed)"
+   }
+  ],
+  "currentSpecialty": null,
+  "currentPractice": [],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "unknown",
+  "seesAdultsEvidence": "No official page could be read.",
+  "fitJudgement": {
+   "value": "unclear",
+   "rationale": "JUDGEMENT: he is licensed as an otolaryngologist, but no official page confirms his current practice, location or fax, and NPPES was last updated in 2007, so the destination cannot be verified."
+  },
+  "notes": "The organisation NPPES record 1114189743 'PUGET SOUND HEARING AND BALANCE' (last updated 2008) lists 9714 3rd Ave NE Suite 100, Seattle 98115, phone 206-523-5584 and fax 206-523-5882, the same fax as his individual record. Non-authoritative sources only (Healthline/Wellness/Yelp, search snippets) say he practises at Puget Sound Hearing & Balance, 9714 3rd Ave NE Ste 100, Seattle 98115, focused on hearing/balance and cochlear implants. A search snippet for the UW Medicine bio said 'board certified physician at Northwest Hearing and Balance and Northwest Otolaryngology and a UW instructor'; this could not be verified. The WA DOH licence is active (last issued 02/01/2026), which suggests he still practises.",
+  "failures": [
+   "https://www.uwmedicine.org/bios/alan-langman: HTTP 403 via curl and WebFetch",
+   "Wayback: no snapshot of uwmedicine.org/bios/alan-langman; Internet Archive then went 'Temporarily Offline'",
+   "otolaryngology.uw.edu/our-people/faculty/alan-w-langman-md/ and /alan-langman-md: HTTP 404",
+   "pugetsoundhearing.com: 'Coming Soon' placeholder; pugetsoundhearingandbalance.com, pugetsoundhearingbalance.com, pshb.com: no response",
+   "No official Puget Sound Hearing & Balance website found (only Facebook/Yelp/directories)"
+  ]
+ },
+ {
+  "npi": "1457222895",
+  "name": "Grace Sinae Song, AUD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Otolaryngology/Facial Plastic Surgery (primary, WA LD70120088)",
+    "Otolaryngology, Otolaryngology/Facial Plastic Surgery (MA AUD100201)"
+   ],
+   "addresses": [
+    {
+     "line1": "904 7TH AVE",
+     "city": "SEATTLE",
+     "zip": "981041132",
+     "phone": "206-860-5573",
+     "fax": ""
+    },
+    {
+     "line1": "7600 EVERGREEN WAY (mailing)",
+     "city": "EVERETT",
+     "zip": "982036421",
+     "phone": "206-860-5414",
+     "fax": ""
+    },
+    {
+     "line1": "9709 3RD AVE NE (practiceLocation)",
+     "city": "SEATTLE",
+     "zip": "981152062",
+     "phone": "206-860-5573",
+     "fax": ""
+    },
+    {
+     "line1": "3927 RUCKER AVE (practiceLocation)",
+     "city": "EVERETT",
+     "zip": "982014833",
+     "phone": "425-339-5541",
+     "fax": ""
+    },
+    {
+     "line1": "860 WASHINGTON ST (practiceLocation)",
+     "city": "BOSTON",
+     "zip": "021111521",
+     "phone": "617-636-9190",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2026-06-18"
+  },
+  "licence": {
+   "credentialNumber": "AUD.LD.70120088",
+   "type": "Audiologist License",
+   "status": "Active",
+   "expires": "04/30/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('AUD.LD.70120088')"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.optum.com/en/care/providers/wa/grace-song-aud-1457222895.html",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Grace Song, Aud ... Accepting new patients ... Optum Provider ... Network Name The Polyclinic ... NPI 1457222895"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Audiologist (page's specialty field reads Otolaryngology/Facial Plastic Surgery)",
+   "url": "https://www.optum.com/en/care/providers/wa/grace-song-aud-1457222895.html",
+   "quote": "Specialty Otolaryngology/Facial Plastic Surgery ... I pursued audiology ... with a focus on diagnostics, hearing aids, and vestibular testing."
+  },
+  "currentPractice": [
+   {
+    "name": "Optum - Northgate Plaza",
+    "line1": "9709 3rd Ave NE",
+    "city": "Seattle",
+    "zip": "98115",
+    "url": "https://www.optum.com/en/care/providers/wa/grace-song-aud-1457222895.html",
+    "quote": "Seeing patients at ... Optum - Northgate Plaza 1-206-329-1760 ... 9709 3rd Ave NE, Seattle, WA 98115"
+   },
+   {
+    "name": "Optum - Madison Center",
+    "line1": "904 7th Ave",
+    "city": "Seattle",
+    "zip": "98104",
+    "url": "https://www.optum.com/en/care/providers/wa/grace-song-aud-1457222895.html",
+    "quote": "Optum - Madison Center 1-206-329-1760 ... 904 7th Ave, Seattle, WA 98104"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2063575041",
+    "label": "Fax Number",
+    "location": "provider-level (not tied to a specific location on page; applies to 9709 3rd Ave NE / 904 7th Ave)",
+    "url": "https://www.optum.com/en/care/providers/wa/grace-song-aud-1457222895.html",
+    "quote": "Phone Number 1-206-860-5573 Fax Number 1-206-357-5041"
+   }
+  ],
+  "referralFax": null,
+  "seesAdults": "unknown",
+  "seesAdultsEvidence": "Provider page does not state patient ages. Bio mentions managing 'complex ear disorders' and 'hearing aids' but no explicit adult/age statement.",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: she is an audiologist (AuD), not an otolaryngologist physician, so she cannot perform the ENT/otolaryngology medical evaluation (e.g. retrocochlear work-up) an audiologist is referring for, despite the ENT-labelled taxonomy."
+  },
+  "notes": "NPPES taxonomy and Optum 'Specialty' field both say Otolaryngology/Facial Plastic Surgery, which is a mis-coding for an AuD; DOH credential is Audiologist License (first issued 05/04/2026). Optum Northgate Plaza is 1.x mi from 98115 and hosts Optum ENT/audiology, but Grace Song herself is not the ENT. Tufts Medicine has a page tuftsmedicine.org/doctor/grace-song (Boston NPPES location) - fetch returned no usable text; not verified whether current.",
+  "failures": [
+   "VMFH URL guesses (virginiamason.org/grace-song-aud, vmfh.org/find-a-doctor/grace-song) - not found or JS-rendered with no provider content",
+   "Tufts Medicine page fetched via curl yielded no parsable provider text",
+   "Optum Northgate facility page did not list ages or a fax"
+  ]
+ },
+ {
+  "npi": "1457413643",
+  "name": "Herbert C Thomas, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (primary, WA MD00011640)",
+    "Otolaryngology (WA MD00011640)"
+   ],
+   "addresses": [
+    {
+     "line1": "4800 SAND POINT WAY NE",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-2105",
+     "fax": "206-987-3878"
+    },
+    {
+     "line1": "PO BOX 50010 (mailing)",
+     "city": "SEATTLE",
+     "zip": "981051010",
+     "phone": "206-987-8450",
+     "fax": "206-987-8484"
+    }
+   ],
+   "lastUpdated": "2009-02-03"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.00011640",
+   "type": "Physician And Surgeon License",
+   "status": "Expired",
+   "expires": "10/06/2021",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.00011640')"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/your-care-team/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Lists Amit D Bhrany, MD ... Sheng Zhou, MD (13 physicians); no Herbert Thomas"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/directory/herbert-c-thomas",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "HTTP 404"
+   }
+  ],
+  "currentSpecialty": null,
+  "currentPractice": [],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "unknown",
+  "seesAdultsEvidence": "No current official practice page found. NPPES address is Seattle Children's Hospital (pediatric).",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: WA licence expired 10/06/2021, no official page lists him currently, and his NPPES record is pediatric otolaryngology at Seattle Children's (a children's hospital) - not a valid destination for a 46-year-old."
+  },
+  "notes": "DOH name 'Thomas Jr, Herbert C', first issued 1970. NPPES record not updated since 2009. enthealth/Doximity/WebMD bios (not ground truth) describe him joining Seattle Children's pediatric otolaryngology in 2007. Seattle Children's ENT contact page states 'A provider referral is required.'",
+  "failures": [
+   "Seattle Children's directory slugs herbert-c-thomas, herbert-thomas -> 404",
+   "Not on Seattle Children's ENT care-team page",
+   "UW Otolaryngology faculty slugs herbert-thomas-md, herbert-c-thomas-md -> 404",
+   "site:seattlechildrens.org web search found nothing"
+  ]
+ },
+ {
+  "npi": "1477715696",
+  "name": "Kaalan E Johnson, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (licence 35.097031 OH)",
+    "Otolaryngology, Pediatric Otolaryngology (licence MD 60340296 WA, primary)"
+   ],
+   "addresses": [
+    {
+     "line1": "4800 SAND POINT WAY NE OA.9.220 - OTOLARYNGOLOGY-ENT [MAILING]",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-3468",
+     "fax": "206-987-3925"
+    },
+    {
+     "line1": "4800 SAND POINT WAY NE OA.9.220 - OTOLARYNGOLOGY-ENT",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-3468",
+     "fax": "206-987-3925"
+    }
+   ],
+   "lastUpdated": "2013-07-13"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.60340296",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "07/03/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber%20in%20(%27MD.MD.60340296%27)"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.seattlechildrens.org/directory/kaalan-e-johnson/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Kaalan E Johnson, MD Specialties Otolaryngology Craniofacial Center Aerodigestive Program Airway and Esophageal Center Children's Title: Director, Aerodigestive Program"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Seattle Children's Hospital ... Physical Address 4800 Sand Point Way NE Seattle, WA 98105 ... Fax 206-985-3392"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults."
+   },
+   {
+    "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "fax to 206-985-3121 or 866-985-3121 (toll-free)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otolaryngology (pediatric); aerodigestive/airway, voice",
+   "url": "https://www.seattlechildrens.org/directory/kaalan-e-johnson/",
+   "quote": "Dr. Johnson is the Surgical Director of the Aerodigestive Program, Director of the Voice Program, and practices at Seattle Children's Hospital Campus, North Clinic, and Bellevue Clinic"
+  },
+  "currentPractice": [
+   {
+    "name": "Seattle Children's Hospital - Otolaryngology-ENT (OA.9.220)",
+    "line1": "4800 Sand Point Way NE",
+    "city": "Seattle",
+    "zip": "98105",
+    "url": "https://www.seattlechildrens.org/directory/kaalan-e-johnson/",
+    "quote": "Seattle Children's - Otolaryngology Clinic 4800 Sand Point Way NE"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2069853392",
+    "label": "Fax",
+    "location": "4800 Sand Point Way NE",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Hospital ... Appointment 206-987-2105 A provider referral is required. Fax Numbers Fax 206-985-3392"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   },
+   {
+    "digits": "4257836205",
+    "label": "Fax",
+    "location": "1815 13th St., Everett, WA 98201",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's North Clinic in Everett ... Fax Numbers Fax 425-783-6205"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   }
+  ],
+  "referralFax": {
+   "digits": "2069853121",
+   "label": "Fax: Complete the New Appointment Request Form ... and fax to 206-985-3121 or 866-985-3121 (toll-free)",
+   "location": "Seattle Children's system-wide referral intake (not location-specific); ENT page links here",
+   "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+   "quote": "Fax: Complete the New Appointment Request Form (PDF) (DOC) and fax to 206-985-3121 or 866-985-3121 (toll-free), along with any additional notes"
+  },
+  "seesAdults": "no",
+  "seesAdultsEvidence": "Seattle Children's ENT refer-a-patient page (https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/): \"We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults.\"",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "Provider practises pediatric otolaryngology at Seattle Children's, which explicitly does not take new patients 21+; a 46-year-old must be referred to an adult ENT."
+  },
+  "notes": "NPPES source: https://npiregistry.cms.hhs.gov/api/?version=2.1&number=1477715696. NPPES fax 206-987-3925 (NPPES only; not found on any official page). Directory page's office block is titled 'Seattle Children's - Otolaryngology Clinic' (same 4800 Sand Point Way NE). Also practises at North Clinic Everett (1815 13th St, fax 425-783-6205) and Bellevue (fax 425-451-0214) per contact page. NPPES licence 'MD 60340296' -> DOH MD.MD.60340296; also Ohio licence 35.097031 (Cincinnati Children's).",
+  "failures": [
+   "https://www.seattlechildrens.org/doctors/<slug>/ returned 404 (correct path is /directory/<slug>/)",
+   "uwmedicine.org/bios/<slug> returned HTTP 403 to curl and WebFetch; could not check whether UW Medicine lists any adult clinic for this provider",
+   "ENT contact page 'Fax' labels are unqualified (not stated as referral fax); the referral fax comes from the system-wide Refer a Patient page"
+  ]
+ },
+ {
+  "npi": "1487065926",
+  "name": "Christopher Tonn, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology (primary; WA MD61627044)"
+   ],
+   "addresses": [
+    {
+     "line1": "4011 172nd St NE",
+     "city": "Arlington",
+     "zip": "982237355",
+     "phone": "4252590966",
+     "fax": "3603634712"
+    },
+    {
+     "line1": "PO Box 5127 (mailing)",
+     "city": "Everett",
+     "zip": "982065127",
+     "phone": "2068605414",
+     "fax": "2067208462"
+    },
+    {
+     "line1": "9709 3rd Ave NE (NPPES practiceLocations)",
+     "city": "Seattle",
+     "zip": "981152062",
+     "phone": "2063291760",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2025-09-16"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.61627044",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "04/22/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber='MD.MD.61627044'"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.optum.com/en/care/providers/wa/christopher-tonn-md-1487065926.html",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Christopher Tonn, MD ... Accepting new patients ... Specialty Otolaryngology ... Phone Number 1-425-339-5441 Fax Number 1-425-259-1155"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otolaryngology",
+   "url": "https://www.optum.com/en/care/providers/wa/christopher-tonn-md-1487065926.html",
+   "quote": "Specialty Otolaryngology"
+  },
+  "currentPractice": [
+   {
+    "name": "Optum - Edmonds",
+    "line1": "21401 72nd Ave W",
+    "city": "Edmonds",
+    "zip": "98026",
+    "url": "https://www.optum.com/en/care/providers/wa/christopher-tonn-md-1487065926.html",
+    "quote": "Optum - Edmonds 1-425-259-0966 ... 21401 72nd Ave W, Edmonds, WA 98026"
+   },
+   {
+    "name": "Optum - Arlington",
+    "line1": "4011 172nd St NE",
+    "city": "Arlington",
+    "zip": "98223",
+    "url": "https://www.optum.com/en/care/providers/wa/christopher-tonn-md-1487065926.html",
+    "quote": "Optum - Arlington 1-425-259-0966 ... 4011 172nd St NE, Arlington, WA 98223"
+   },
+   {
+    "name": "Optum - Gunderson",
+    "line1": "3927 Rucker Ave",
+    "city": "Everett",
+    "zip": "98201",
+    "url": "https://www.optum.com/en/care/providers/wa/christopher-tonn-md-1487065926.html",
+    "quote": "Optum - Gunderson 1-425-259-0966 ... 3927 Rucker Ave, Everett, WA 98201"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "4252591155",
+    "label": "Fax Number",
+    "location": "provider-level on Optum page (not tied to a specific location of the three listed)",
+    "url": "https://www.optum.com/en/care/providers/wa/christopher-tonn-md-1487065926.html",
+    "quote": "Phone Number 1-425-339-5441 Fax Number 1-425-259-1155"
+   }
+  ],
+  "referralFax": null,
+  "seesAdults": "unknown",
+  "seesAdultsEvidence": "The Optum page gives no age range. Optum Care WA's ENT surgery page describes adult-type services ('thyroid, and parathyroid glands, sinusitis, and swallowing and hearing issues'), but no explicit adult/age statement was found.",
+  "fitJudgement": {
+   "value": "appropriate",
+   "rationale": "JUDGEMENT: a general otolaryngologist accepting new patients at Optum multispecialty clinics (nearest is Edmonds, about 10 miles from 98115) can reasonably do an asymmetric SNHL work-up, though he is not a neurotologist and adult intake is not explicitly confirmed."
+  },
+  "notes": "The Optum page does not list the NPPES Seattle practice location (9709 3rd Ave NE) or the NPPES Arlington fax 360-363-4712. 425-259-1155 is labelled only 'Fax Number', not referral. christophertonn.dr-leonardo.com is an auto-generated NPI-mirror template ('Dr. Leonardo Interactive Webservices'), not an official practice site. Optum WA scheduling line per search snippet (not verified on a page): 'Everett and Eastside: 1-425-259-0966'. DOH licence first issued 02/18/2025.",
+  "failures": [
+   "optumwa.com has no ENT-specific page or referral fax found (/specialty-care/, /specialty-care/surgery/ checked)"
+  ]
+ },
+ {
+  "npi": "1629168570",
+  "name": "Clifford Robert Hume",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Otology & Neurotology (primary; WA licence MD00041478)"
+   ],
+   "addresses": [
+    {
+     "line1": "University of Washington Medical Ctr, 1959 NE Pacific St",
+     "city": "Seattle",
+     "zip": "981956161",
+     "phone": "2065984022",
+     "fax": ""
+    },
+    {
+     "line1": "PO Box 50095 (mailing)",
+     "city": "Seattle",
+     "zip": "981455095",
+     "phone": "",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2016-12-20"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.00041478",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "10/26/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber='MD.MD.00041478'"
+  },
+  "officialPages": [
+   {
+    "url": "https://otolaryngology.uw.edu/our-people/faculty/clifford-r-hume-md-phd/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "He has clinical practices at the UW Medical Center and the VA Puget Sound Medical Center and is the chief of otolaryngology at VA Puget Sound."
+   },
+   {
+    "url": "https://otolaryngology.uw.edu/clinics/montlake",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Otolaryngology-HNS at UW Medical Center - Montlake ... 1959 N.E. Pacific Street ... Clifford R. Hume, MD, PhD"
+   },
+   {
+    "url": "https://www.uwmedicine.org/bios/clifford-hume",
+    "fetched": false,
+    "listsProvider": true,
+    "quote": "(live fetch HTTP 403; Wayback snapshot 20260521) \"Accepting new and returning patients\" ... \"Otolaryngology-Head and Neck Surgery Center at UW Medical Center – Montlake 1959 NE Pacific St.\""
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otology and Neurotology; Vestibular Diagnostics and Audiology",
+   "url": "https://otolaryngology.uw.edu/our-people/faculty/clifford-r-hume-md-phd/",
+   "quote": "Specialties Vestibular Diagnostics and Audiology Otology and Neurotology"
+  },
+  "currentPractice": [
+   {
+    "name": "Otolaryngology-HNS at UW Medical Center - Montlake",
+    "line1": "1959 NE Pacific St",
+    "city": "Seattle",
+    "zip": "98195",
+    "url": "https://otolaryngology.uw.edu/clinics/montlake",
+    "quote": "Otolaryngology-HNS at UW Medical Center - Montlake 1959 N.E. Pacific Street 1-206-598-4022"
+   },
+   {
+    "name": "Otolaryngology-Head and Neck Surgery Clinic at Harborview (per archived UW Medicine bio only)",
+    "line1": "West Clinic, 325 9th Ave",
+    "city": "Seattle",
+    "zip": "98104",
+    "url": "http://web.archive.org/web/20260521201447/https://www.uwmedicine.org/bios/clifford-hume",
+    "quote": "Otolaryngology-Head and Neck Surgery Clinic at Harborview West Clinic, 325 9th Ave., Seattle, WA 98104 206.520.5000"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2065986611",
+    "label": "Fax:",
+    "location": "1959 NE Pacific Street, 3rd Floor, NE 300",
+    "url": "https://otolaryngology.uw.edu/our-people/faculty/clifford-r-hume-md-phd/",
+    "quote": "University of Washington Medical Center 1959 NE Pacific Street, 3rd Floor, NE 300 Seattle, WA 98195 Phone: (206) 598-4022, Option 8 Fax: (206) 598-6611"
+   }
+  ],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "Practices at UW Medical Center - Montlake (adult academic medical centre) and is chief of otolaryngology at VA Puget Sound (veterans); UW dept lists him under Otology and Neurotology, not Pediatric Otolaryngology. No page states an explicit age range.",
+  "fitJudgement": {
+   "value": "appropriate",
+   "rationale": "JUDGEMENT: a UW otology/neurotology surgeon whose stated interests include hearing loss, at an adult ENT clinic about 3 miles from 98115, is a textbook destination for an asymmetric SNHL work-up."
+  },
+  "notes": "The (206) 598-6611 fax appears in the site-wide footer of every otolaryngology.uw.edu page, next to the department's UWMC address. It is labelled only 'Fax:' and is not described as a referral fax. The department 'Patient Referrals' page (https://otolaryngology.uw.edu/patientcare/patient-referrals/) only links to https://www.uwmedicine.org/provider-resource/refer-patient, which returned 403. The archived UW Medicine bio also says he practises at 'Eastside Specialty Clinic', but no address for it was verified. NPPES was last updated in 2016. Mirror sites (Doximity/Healthgrades/WebMD) were not used.",
+  "failures": [
+   "https://www.uwmedicine.org/bios/clifford-hume: HTTP 403 (Akamai Access Denied) via curl and WebFetch",
+   "https://www.uwmedicine.org/provider-resource/refer-patient: HTTP 403",
+   "https://www.uwmedicine.org/locations/otolaryngology-head-and-neck-surgery-center-uwmc-montlake: HTTP 403",
+   "Internet Archive later returned 'Temporarily Offline' (could not check the archived refer-patient page)"
+  ]
+ },
+ {
+  "npi": "1689607855",
+  "name": "Northwest Pediatric Otolaryngology Group",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (licence MD00039276 WA, primary)"
+   ],
+   "addresses": [
+    {
+     "line1": "6850 35TH AVE NE STE 4 [MAILING]",
+     "city": "SEATTLE",
+     "zip": "981157344",
+     "phone": "206-525-0903",
+     "fax": "866-497-3901"
+    },
+    {
+     "line1": "6850 35TH AVE NE SUITE 4",
+     "city": "SEATTLE",
+     "zip": "981157344",
+     "phone": "206-525-0903",
+     "fax": "866-497-3901"
+    }
+   ],
+   "lastUpdated": "2012-09-10"
+  },
+  "licence": null,
+  "officialPages": [],
+  "currentSpecialty": null,
+  "currentPractice": [],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "unknown",
+  "seesAdultsEvidence": "No official page found. Organization name and sole NPPES taxonomy ('Otolaryngology, Pediatric Otolaryngology') suggest a pediatric practice, but no official statement of age limits was found.",
+  "fitJudgement": {
+   "value": "unclear",
+   "rationale": "No official page confirms the practice still exists or whom it sees; name/taxonomy indicate pediatric ENT, so it is likely not appropriate for a 46-year-old, but this is unverified (NPPES last updated 2012)."
+  },
+  "notes": "NPPES source: https://npiregistry.cms.hhs.gov/api/?version=2.1&number=1689607855. NPPES (last updated 2012-09-10): 6850 35th Ave NE Suite 4, Seattle 98115, phone 206-525-0903, fax 866-497-3901 — NPPES-only, unverified. Authorized official Anifat O Balogun MD (Owner); her DOH licence MD.MD.00039276 is Active, exp 09/03/2027, actiontaken 'Pending' (checked only because it is the org's NPPES taxonomy licence number). Non-official sources: Yellowpages lists the group at 6022 35th Ave NE, 98115, phone (206) 852-4047; Zocdoc lists Dr Balogun under 'NW Otolaryngology Associates & SkinMD' (Seattle and Woodinville) and says she sees 'Hearing Problems' — Zocdoc/Yellowpages are not ground truth. The addresses conflict (6850 vs 6022 35th Ave NE).",
+  "failures": [
+   "Web searches for the group name, 'Northwest Pediatric Otolaryngology' + Balogun, and 'NW Otolaryngology Associates' found only directory/aggregator sites (Yellowpages, WebMD, Doximity, Vitals, Zocdoc, npiprofile), no official site",
+   "Guessed domains nwpedsent.com, northwestpediatricotolaryngology.com, nwpediatricotolaryngology.com, nwpog.com did not resolve; nwpediatricent.com redirects to bellevuepediatricent.com (HTTP 403), apparently a different practice, not investigated as it isn't linked to this NPI",
+   "skinmdseattle.com (official SkinMD Seattle site) fetched: aesthetics clinic only, no mention of ENT, Balogun, or this group"
+  ]
+ },
+ {
+  "npi": "1740393461",
+  "name": "Natalie P Higgins, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "207YX0905X Otolaryngology/Facial Plastic Surgery (primary, WA MD60174057)",
+    "207Y00000X Otolaryngology (WA 60174057)"
+   ],
+   "addresses": [
+    {
+     "line1": "1800 116TH AVE NE STE 102 (LOCATION)",
+     "city": "BELLEVUE, WA",
+     "zip": "98004",
+     "phone": "4254513710",
+     "fax": "4254512636"
+    },
+    {
+     "line1": "3927 RUCKER AVE (practiceLocations)",
+     "city": "EVERETT, WA",
+     "zip": "982014833",
+     "phone": "4253395441",
+     "fax": "4252591155"
+    }
+   ],
+   "lastUpdated": "2019-04-13"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.60174057",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "08/04/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.60174057')"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.eastsideent.com/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Proliance ENT providers list (Knipe, Eisen, Wolfe, Santos, ...) does not include Higgins; no 1800 116th Ave NE location listed"
+   },
+   {
+    "url": "https://www.proliancesurgeons.com/?s=Higgins",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Only result: 'Alexander C. Higgins' - no Natalie Higgins"
+   },
+   {
+    "url": "https://www.overlakehospital.org/doctors/natalie-higgins-md",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "HTTP 404"
+   }
+  ],
+  "currentSpecialty": null,
+  "currentPractice": [],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "unknown",
+  "seesAdultsEvidence": "No official page listing her was found.",
+  "fitJudgement": {
+   "value": "unclear",
+   "rationale": "JUDGEMENT: WA licence active but no official page confirms a current practice location; NPPES (last updated 2019) lists facial plastic surgery as primary, which is a weak fit for an SNHL workup."
+  },
+  "notes": "NPPES data are from 2019. Web search/Yelp/Healthgrades associate 1800 116th Ave NE Ste 102 / (425) 451-3710 with 'Proliance Eastside ENT', but the Proliance official site does not list her or that address. A third-party site associates her with The Everett Clinic at Smokey Point (Marysville); Optum/Everett Clinic plastic-surgery page (everettclinic.com) fetched and did not mention Higgins. Doximity/Healthgrades/WebMD still list Bellevue - not ground truth.",
+  "failures": [
+   "overlakehospital.org/doctors/natalie-higgins-md -> 404; providers.overlakehospital.org search is JS-only (no results rendered)",
+   "evergreenhealth.com find-a-doctor profile guesses -> 403 Access Denied",
+   "optumwa.com find-a-doctor -> client-side app error; optum.com site search found no Higgins",
+   "No practice website found for 1800 116th Ave NE Ste 102 / 425-451-3710"
+  ]
+ },
+ {
+  "npi": "1760724892",
+  "name": "Juliana Bonilla-Velez, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (licence 60947191 WA, primary)",
+    "Student in an Organized Health Care Education/Training Program (licence none )"
+   ],
+   "addresses": [
+    {
+     "line1": "PO BOX 5371 MAIL STOP OA9.220 [MAILING]",
+     "city": "SEATTLE",
+     "zip": "98145",
+     "phone": "",
+     "fax": ""
+    },
+    {
+     "line1": "4800 SAND POINT WAY NE",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-3468",
+     "fax": ""
+    },
+    {
+     "line1": "4301 W MARKHAM ST [PRACTICE_LOCATION (secondary)]",
+     "city": "LITTLE ROCK, AR",
+     "zip": "722057101",
+     "phone": "501-686-8525",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2019-08-19"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.60947191",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "08/04/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber%20in%20(%27MD.MD.60947191%27)"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.seattlechildrens.org/directory/juliana-bonilla-velez/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Juliana Bonilla-Velez, MD, MS Specialties Otolaryngology Vascular Anomalies Thyroid Program ... Children's Title: Surgical Director, Vascular Anomalies Program"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Seattle Children's Hospital ... Physical Address 4800 Sand Point Way NE Seattle, WA 98105 ... Fax 206-985-3392"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults."
+   },
+   {
+    "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "fax to 206-985-3121 or 866-985-3121 (toll-free)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otolaryngology (pediatric); vascular anomalies, airway, thyroid",
+   "url": "https://www.seattlechildrens.org/directory/juliana-bonilla-velez/",
+   "quote": "Dr. Bonilla-Velez is a pediatric otolaryngologist at Seattle Children's Hospital"
+  },
+  "currentPractice": [
+   {
+    "name": "Seattle Children's Hospital - Otolaryngology-ENT (OA.9.220)",
+    "line1": "4800 Sand Point Way NE",
+    "city": "Seattle",
+    "zip": "98105",
+    "url": "https://www.seattlechildrens.org/directory/juliana-bonilla-velez/",
+    "quote": "Primary Office Seattle Children's - Otolaryngology-ENT 4800 Sand Point Way NE OA.9.220 Seattle, WA 98105 Tel: 206-987-2105"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2069853392",
+    "label": "Fax",
+    "location": "4800 Sand Point Way NE",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Hospital ... Appointment 206-987-2105 A provider referral is required. Fax Numbers Fax 206-985-3392"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   },
+   {
+    "digits": "4257836205",
+    "label": "Fax",
+    "location": "1815 13th St., Everett, WA 98201",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's North Clinic in Everett ... Fax Numbers Fax 425-783-6205"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   }
+  ],
+  "referralFax": {
+   "digits": "2069853121",
+   "label": "Fax: Complete the New Appointment Request Form ... and fax to 206-985-3121 or 866-985-3121 (toll-free)",
+   "location": "Seattle Children's system-wide referral intake (not location-specific); ENT page links here",
+   "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+   "quote": "Fax: Complete the New Appointment Request Form (PDF) (DOC) and fax to 206-985-3121 or 866-985-3121 (toll-free), along with any additional notes"
+  },
+  "seesAdults": "no",
+  "seesAdultsEvidence": "Seattle Children's ENT refer-a-patient page (https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/): \"We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults.\"",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "Provider practises pediatric otolaryngology at Seattle Children's, which explicitly does not take new patients 21+; a 46-year-old must be referred to an adult ENT."
+  },
+  "notes": "NPPES source: https://npiregistry.cms.hhs.gov/api/?version=2.1&number=1760724892. NPPES taxonomy licence '60947191' (no prefix) maps to DOH MD.MD.60947191. NPPES also lists an Arkansas secondary practice location (4301 W Markham St, Little Rock — UAMS, her residency) which is stale. NPPES last updated 2019. Earlier DOH residency limited licence MDRE.ML.60826360 expired 07/02/2019.",
+  "failures": [
+   "https://www.seattlechildrens.org/doctors/<slug>/ returned 404 (correct path is /directory/<slug>/)",
+   "uwmedicine.org/bios/<slug> returned HTTP 403 to curl and WebFetch; could not check whether UW Medicine lists any adult clinic for this provider",
+   "ENT contact page 'Fax' labels are unqualified (not stated as referral fax); the referral fax comes from the system-wide Refer a Patient page"
+  ]
+ },
+ {
+  "npi": "1760942494",
+  "name": "Jacob Cameron Bloom, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "207YX0007X Otolaryngology, Plastic Surgery within the Head & Neck (primary, WA MD61543077)",
+    "207Y00000X Otolaryngology (WA MD61543077)"
+   ],
+   "addresses": [
+    {
+     "line1": "1550 N 115TH ST (LOCATION)",
+     "city": "SEATTLE, WA",
+     "zip": "981338401",
+     "phone": "2065205000",
+     "fax": ""
+    },
+    {
+     "line1": "1959 NE PACIFIC ST. (practiceLocations)",
+     "city": "SEATTLE, WA",
+     "zip": "981950001",
+     "phone": "2065205000",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2024-08-16"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.61543077",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "10/30/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.61543077')"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.uwmedicine.org/bios/jacob-bloom",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Locations Otolaryngology Clinic at Northwest Outpatient Medical Center 10330 Meridian Ave. N, Seattle, WA 98133 ... 206.668.7100"
+   },
+   {
+    "url": "https://www.uwmedicine.org/locations/northwest-otolaryngology",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Jacob Bloom, MD Accepting new and returning patients ... 10330 Meridian Ave. N, Suite 270, Seattle, WA 98133 206.668.7101 fax"
+   },
+   {
+    "url": "https://otolaryngology.uw.edu/our-people/faculty/jacob-bloom-md/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Jacob C. Bloom, MD, is a head and neck surgeon at the University of Washington Northwest ENT (Ear, Nose, Throat)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otolaryngology [ENT] - head and neck surgery (general ENT incl. middle ear/chronic ear disease)",
+   "url": "https://www.uwmedicine.org/bios/jacob-bloom",
+   "quote": "In addition to general ENT, Jacob Bloom, MD specializes in nasal, sinus and sleep apnea surgery, as well as surgical management of middle ear, thyroid and salivary gland diseases."
+  },
+  "currentPractice": [
+   {
+    "name": "Otolaryngology Clinic at Northwest Outpatient Medical Center (UW Medicine)",
+    "line1": "10330 Meridian Ave. N, Suite 270",
+    "city": "Seattle, WA",
+    "zip": "98133",
+    "url": "https://www.uwmedicine.org/locations/northwest-otolaryngology",
+    "quote": "Otolaryngology Clinic at Northwest Outpatient Medical Center Make an Appointment 206.668.7100 ... 10330 Meridian Ave. N, Suite 270, Seattle, WA 98133"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2066687101",
+    "label": "fax",
+    "location": "10330 Meridian Ave. N, Suite 270",
+    "url": "https://www.uwmedicine.org/locations/northwest-otolaryngology",
+    "quote": "10330 Meridian Ave. N, Suite 270, Seattle, WA 98133 206.668.7101 fax"
+   }
+  ],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "Clinic page: 'We offer advanced medical and surgical treatment for a wide range of ear, nose and throat ... conditions for both adults and children.'",
+  "fitJudgement": {
+   "value": "appropriate",
+   "rationale": "JUDGEMENT: Accepting-new-patients general ENT with chronic/middle ear interest at a UW clinic with on-site audiology and hearing evaluations, ~4 miles from 98115."
+  },
+  "notes": "NPPES addresses (1550 N 115th St hospital main; 1959 NE Pacific St UWMC) are not the clinic address; clinic is at 10330 Meridian Ave N Ste 270 (Northwest Outpatient Medical Center). Fax label is bare 'fax', not referral-specific. otolaryngology.uw.edu footer 'Fax: (206) 598-6611' belongs to the UWMC department (1959 NE Pacific St, 3rd Floor, NE 300), not this clinic. uwmedicine.org returned 403 to direct curl/WebFetch; pages fetched via r.jina.ai reader proxy (rendered official page content). UW Medicine also has a general Patient Referral Form (uwmedicine.org/practitioner-resources/refer-patient) - not fetched.",
+  "failures": [
+   "uwmedicine.org direct fetch 403 (curl and WebFetch); used r.jina.ai reader",
+   "otolaryngology.uw.edu/patient-care/patient-referrals/ 404; /patientcare/patient-referrals/ content JS-rendered, only footer fax visible"
+  ]
+ },
+ {
+  "npi": "1790313880",
+  "name": "Jyoti Sharma, MD",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Facial Plastic Surgery (primary; WA 70110809)"
+   ],
+   "addresses": [
+    {
+     "line1": "4915 25th Ave NE Ste 103A",
+     "city": "Seattle",
+     "zip": "981055667",
+     "phone": "8016647638",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2026-09-14"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.70110809",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "12/27/2026",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber='MD.MD.70110809'"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.soundplasticsurgery.com/jyoti-sharma/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Dr. Jyoti Sharma Facial Plastic Surgeon in Seattle, WA"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Facial Plastic Surgery (cosmetic/aesthetic)",
+   "url": "https://www.soundplasticsurgery.com/jyoti-sharma/",
+   "quote": "As a specialist in facial plastic and reconstructive surgery, Dr. Jyoti Sharma uses her clinical expertise combined with her natural eye for artistic detail"
+  },
+  "currentPractice": [
+   {
+    "name": "Sound Plastic Surgery",
+    "line1": "4915 25th Ave NE #103a",
+    "city": "Seattle",
+    "zip": "98105",
+    "url": "https://www.soundplasticsurgery.com/jyoti-sharma/",
+    "quote": "Visit Us 4915 25th Ave NE #103a Seattle, WA 98105 ... Contact (206) 729-2248"
+   }
+  ],
+  "officeFax": [],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "The procedures listed are adult cosmetic ones: 'deep plane facelift, upper and lower blepharoplasty ... hair restoration'. The page talks about helping patients 'age gracefully'.",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "JUDGEMENT: she is a cosmetic facial plastic surgeon at an aesthetic plastic-surgery practice; the page lists no hearing or otology services, so this is not a destination for an SNHL evaluation."
+  },
+  "notes": "The page says she is 'board-eligible and currently pursuing the multi-year board certification' in otolaryngology and facial plastic surgery. No fax appears anywhere on the page (grep 'fax' = 0). The NPPES phone has a Utah area code (801). The WA licence was first issued 07/09/2026.",
+  "failures": []
+ },
+ {
+  "npi": "1902982689",
+  "name": "Henry C Ou",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "Otolaryngology, Pediatric Otolaryngology (licence MD00043898 WA, primary)"
+   ],
+   "addresses": [
+    {
+     "line1": "4500 SAND POINT WAY NE #100 [MAILING]",
+     "city": "SEATTLE",
+     "zip": "981053900",
+     "phone": "",
+     "fax": ""
+    },
+    {
+     "line1": "4800 SAND POINT WAY NE",
+     "city": "SEATTLE",
+     "zip": "981053901",
+     "phone": "206-987-2000",
+     "fax": ""
+    }
+   ],
+   "lastUpdated": "2007-07-08"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.00043898",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "09/08/2027",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber%20in%20(%27MD.MD.00043898%27)"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.seattlechildrens.org/directory/henry-c-ou/",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Henry C Ou, MD Specialties Otolaryngology Childhood Communication Center Cochlear Implant Program Children's Title: Attending and Surgeon, Pediatric Otolaryngology"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "Seattle Children's Hospital ... Physical Address 4800 Sand Point Way NE Seattle, WA 98105 ... Fax 206-985-3392"
+   },
+   {
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults."
+   },
+   {
+    "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "fax to 206-985-3121 or 866-985-3121 (toll-free)"
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Otolaryngology (pediatric); hearing loss / cochlear implantation interest",
+   "url": "https://www.seattlechildrens.org/directory/henry-c-ou/",
+   "quote": "Children's Title: Attending and Surgeon, Pediatric Otolaryngology ... his primary research interests are hearing loss and cochlear implantation."
+  },
+  "currentPractice": [
+   {
+    "name": "Seattle Children's Hospital - Otolaryngology-ENT (OA.9.220)",
+    "line1": "4800 Sand Point Way NE",
+    "city": "Seattle",
+    "zip": "98105",
+    "url": "https://www.seattlechildrens.org/directory/henry-c-ou/",
+    "quote": "Primary Office Seattle Children's - Otolaryngology-ENT 4800 Sand Point Way NE OA.9.220 Seattle, WA 98105 Tel: 206-987-2105"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2069853392",
+    "label": "Fax",
+    "location": "4800 Sand Point Way NE",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Hospital ... Appointment 206-987-2105 A provider referral is required. Fax Numbers Fax 206-985-3392"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   },
+   {
+    "digits": "4257836205",
+    "label": "Fax",
+    "location": "1815 13th St., Everett, WA 98201",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's North Clinic in Everett ... Fax Numbers Fax 425-783-6205"
+   },
+   {
+    "digits": "4254510214",
+    "label": "Fax",
+    "location": "1500 116th Ave. NE, Bellevue, WA 98004",
+    "url": "https://www.seattlechildrens.org/clinics/otolaryngology/contact-locations/",
+    "quote": "Seattle Children's Bellevue Clinic and Surgery Center ... Fax Numbers Fax 425-451-0214"
+   }
+  ],
+  "referralFax": {
+   "digits": "2069853121",
+   "label": "Fax: Complete the New Appointment Request Form ... and fax to 206-985-3121 or 866-985-3121 (toll-free)",
+   "location": "Seattle Children's system-wide referral intake (not location-specific); ENT page links here",
+   "url": "https://www.seattlechildrens.org/healthcare-professionals/refer/",
+   "quote": "Fax: Complete the New Appointment Request Form (PDF) (DOC) and fax to 206-985-3121 or 866-985-3121 (toll-free), along with any additional notes"
+  },
+  "seesAdults": "no",
+  "seesAdultsEvidence": "Seattle Children's ENT refer-a-patient page (https://www.seattlechildrens.org/clinics/otolaryngology/refer-a-patient/): \"We see new patients through age 20. If your patient is 21 or older, we ask that you refer them to an otolaryngology provider for adults.\"",
+  "fitJudgement": {
+   "value": "not_appropriate",
+   "rationale": "Provider practises pediatric otolaryngology at Seattle Children's, which explicitly does not take new patients 21+; a 46-year-old must be referred to an adult ENT."
+  },
+  "notes": "NPPES source: https://npiregistry.cms.hhs.gov/api/?version=2.1&number=1902982689. Page does NOT show an 'Accepting New Patients' badge. Bio says he divides time between UW research (NIH K08) and Seattle Children's clinic. NPPES last updated 2007; NPPES location 4800 Sand Point Way NE matches. Hearing-loss expertise is topical but the site is pediatric-only.",
+  "failures": [
+   "https://www.seattlechildrens.org/doctors/<slug>/ returned 404 (correct path is /directory/<slug>/)",
+   "uwmedicine.org/bios/<slug> returned HTTP 403 to curl and WebFetch; could not check whether UW Medicine lists any adult clinic for this provider",
+   "ENT contact page 'Fax' labels are unqualified (not stated as referral fax); the referral fax comes from the system-wide Refer a Patient page"
+  ]
+ },
+ {
+  "npi": "1912438599",
+  "name": "Grace Michel Wandell, MD, MS",
+  "checkedAt": "2026-09-28",
+  "checkedBy": "agent (Claude subagent), not human-verified",
+  "nppes": {
+   "taxonomies": [
+    "207Y00000X Otolaryngology (primary, WA MD61090180)",
+    "207Y00000X Otolaryngology (CA A187856)"
+   ],
+   "addresses": [
+    {
+     "line1": "600 BROADWAY STE 200 (LOCATION)",
+     "city": "SEATTLE, WA",
+     "zip": "981225373",
+     "phone": "2062151770",
+     "fax": "2062151771"
+    },
+    {
+     "line1": "PO BOX 25608 (MAILING)",
+     "city": "SALT LAKE CITY, UT",
+     "zip": "841250608",
+     "phone": "2063204476",
+     "fax": "2065687043"
+    }
+   ],
+   "lastUpdated": "2025-09-22"
+  },
+  "licence": {
+   "credentialNumber": "MD.MD.61090180",
+   "type": "Physician And Surgeon License",
+   "status": "Active",
+   "expires": "05/22/2028",
+   "url": "https://data.wa.gov/resource/qxh8-f4bd.json?$where=credentialnumber in ('MD.MD.61090180')"
+  },
+  "officialPages": [
+   {
+    "url": "https://www.swedish.org/doctors/laryngology/wa/seattle/grace-wandell-1912438599",
+    "fetched": true,
+    "listsProvider": true,
+    "quote": "Grace M. Wandell, MD Laryngology Accepting New Patients ... Swedish Otolaryngology Specialists - First Hill 600 Broadway, Suite 200 Seattle, WA 98122 (206) 215-1770"
+   },
+   {
+    "url": "https://www.swedish.org/locations/first-hill-campus/otolaryngology-first-hill",
+    "fetched": true,
+    "listsProvider": false,
+    "quote": "600 Broadway, Suite 200, Seattle, WA 98122 ... 206-215-1770 Fax: 206-215-1771 Mon - Fri: 8:30 a.m. - 5 p.m."
+   }
+  ],
+  "currentSpecialty": {
+   "value": "Laryngology (laryngology and bronchoesophagology sub-specialist)",
+   "url": "https://www.swedish.org/doctors/laryngology/wa/seattle/grace-wandell-1912438599",
+   "quote": "Dr. Grace Wandell is a specialist in laryngology and otolaryngology-head and neck surgery."
+  },
+  "currentPractice": [
+   {
+    "name": "Swedish Otolaryngology Specialists - First Hill",
+    "line1": "600 Broadway, Suite 200",
+    "city": "Seattle, WA",
+    "zip": "98122",
+    "url": "https://www.swedish.org/doctors/laryngology/wa/seattle/grace-wandell-1912438599",
+    "quote": "Swedish Otolaryngology Specialists - First Hill 600 Broadway, Suite 200, Seattle, WA 98122"
+   }
+  ],
+  "officeFax": [
+   {
+    "digits": "2062151771",
+    "label": "Fax:",
+    "location": "600 Broadway, Suite 200",
+    "url": "https://www.swedish.org/locations/first-hill-campus/otolaryngology-first-hill",
+    "quote": "206-215-1770 Fax: 206-215-1771"
+   }
+  ],
+  "referralFax": null,
+  "seesAdults": "yes",
+  "seesAdultsEvidence": "Inferred: provider page lists Medicare Advantage plans accepted (e.g. 'Humana Medicare Advantage'); clinic treats 'Head and neck cancer', 'Thyroid cancer'. No explicit 'adults' statement.",
+  "fitJudgement": {
+   "value": "unclear",
+   "rationale": "JUDGEMENT: The clinic is a general otolaryngology practice offering audiology, cochlear implantation and acoustic neuroma surgery (good fit), but Dr. Wandell herself is a voice/airway/swallowing laryngologist, not an otology-focused provider."
+  },
+  "notes": "Fax matches NPPES location fax 206-215-1771. Fax label is generic 'Fax:', not referral-specific. Earlier WA residency limited licence MDRE.ML.60761648 Expired 07/31/2020 (UW residency). Clinic page services include 'Acoustic neuroma surgery', 'Cochlear implantation', 'Hearing aids', 'Balance problems'.",
+  "failures": []
+ }
+]

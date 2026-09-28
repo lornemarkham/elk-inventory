@@ -226,6 +226,17 @@ export interface NearbyResult {
   provider: ConfidenceScore; // registry + licence baseline
 }
 
+// One server-side stage of the nearby search, timed (experiment page).
+export interface NearbyTraceStage {
+  id: string;
+  kind: "DET" | "EXTERNAL";
+  source: string;
+  in: number;
+  out: number;
+  ms: number;
+  detail: string;
+}
+
 export interface NearbyResponse {
   origin: Origin;
   specialty: { key: string; label: string; codes: string[]; nppesQuery: string };
@@ -234,6 +245,7 @@ export interface NearbyResponse {
   scanned: { records: number; addresses: number; geocodedExact: number; geocodedZip: number; truncated: boolean };
   source: string;
   notes: string[];
+  trace?: NearbyTraceStage[];
 }
 
 // ── Referral research (per provider) ─────────────────────────────────────────
@@ -310,6 +322,7 @@ export interface DiscoveryLog {
   pages: DiscoveryPage[];
   outcome: "corroborated" | "not_corroborated" | "search_failed" | "no_results";
   durationMs: number;
+  timings?: { searchMs: number; fetchMs: number }; // Brave call vs page fetch + checks
 }
 
 export interface DiscoverResponse {

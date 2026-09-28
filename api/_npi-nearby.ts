@@ -9,7 +9,7 @@
 //   6. Batch Washington licence check, then baseline scores (no web research).
 // No paid API is called here, so this endpoint needs no demo key.
 
-import type { LicenseCheck, NearbyResponse, NearbyResult, ProviderDetail } from "../src/npi/types";
+import type { LicenseCheck, NearbyResponse, NearbyResult, NearbyTraceStage, ProviderDetail } from "../src/npi/types";
 import { cmsQueryAll, normalize } from "./_npi-lib";
 import { addressKey, geocodeAddresses, matchesSpecialty, resolveOrigin, resolveSpecialty, SPECIALTY_DEFS } from "./_npi-geo";
 import { checkWaLicenses } from "./_npi-wa";
@@ -20,24 +20,34 @@ export class NearbyError extends Error {}
 export const RADII = [5, 10, 25, 50];
 
 export async function searchNearby(specialtyInput: string, locationInput: string, radiusMi: number): Promise<NearbyResponse> {
+  // Per-stage timings and record counts, returned as `trace` for the experiment page.
+  const trace: NearbyTraceStage[] = [];
+  let t0 = Date.now();
+  const lap = (s: Omit<NearbyTraceStage, "ms">) => { const now = Date.now(); trace.push({ ...s, ms: now - t0 }); t0 = now; };
+
   const def = resolveSpecialty(specialtyInput);
   if (!def) throw new NearbyError(`“${specialtyInput}” isn't in this demo's specialty list. Try: ${SPECIALTY_DEFS.map((d) => d.label).join(", ")}.`);
+  lap({ id: "specialty", kind: "DET", source: "alias table (api/_npi-geo.ts)", in: 1, out: def.codes.length, detail: `“${specialtyInput}” → taxonomy prefixes ${def.codes.join(", ")} · NPPES query “${def.nppesQuery}”` });
   const origin = await resolveOrigin(locationInput);
   if (!origin) throw new NearbyError(`Couldn't locate “${locationInput}”. Use a ZIP code, “City, ST”, or a street address with city, state and ZIP.`);
+  lap({ id: "origin", kind: "EXTERNAL", source: origin.method, in: 1, out: 1, detail: `“${locationInput}” → ${origin.coords.lat.toFixed(4)}, ${origin.coords.lon.toFixed(4)} (${origin.precision} precision)` });
 
   const notes: string[] = [];
   const { records, truncated } = await cmsQueryAll({ taxonomy_description: def.nppesQuery, state: origin.state, address_purpose: "LOCATION" });
+  lap({ id: "nppes", kind: "EXTERNAL", source: "CMS NPPES API", in: 1, out: records.length, detail: `taxonomy_description=${def.nppesQuery} state=${origin.state} address_purpose=LOCATION · ${Math.ceil((records.length + 1) / 200)} page request(s) of ≤200${truncated ? " · TRUNCATED at 1,200" : ""}` });
   if (truncated) notes.push(`NPPES returned its maximum of 1,200 ${def.label} records for ${origin.state}; some providers may be missing.`);
   notes.push(`Searched NPPES practice locations in ${origin.state} only; providers across a state line are not included.`);
 
   const providers: ProviderDetail[] = records
     .map((r) => normalize(r, "CMS NPPES API"))
     .filter((p) => p.status === "Active" && matchesSpecialty(def, p.taxonomies.map((t) => t.code)));
+  lap({ id: "taxonomy", kind: "DET", source: "code", in: records.length, out: providers.length, detail: `kept Active records with a taxonomy code starting ${def.codes.join(" / ")}` });
 
   const addrs = providers.flatMap((p) => p.addresses.filter((a) => a.purpose !== "Mailing" && a.state === origin.state))
     .map((a) => ({ key: addressKey(a.line1, a.postalCode || a.city), line1: a.line1, city: a.city, state: a.state, zip5: a.postalCode.slice(0, 5) }));
   const geo = await geocodeAddresses(addrs);
   const geoVals = [...new Set(addrs.map((a) => a.key))].map((k) => geo.get(k));
+  lap({ id: "geocode", kind: "EXTERNAL", source: "US Census batch geocoder (ZIP-centroid fallback)", in: geoVals.length, out: geoVals.filter(Boolean).length, detail: `${geoVals.filter((g) => g?.precision === "address").length} exact, ${geoVals.filter((g) => g?.precision === "zip").length} ZIP-centroid only, ${geoVals.filter((g) => !g).length} unmapped` });
 
   // Cheap pre-filter on geocoded addresses before building full views.
   const inRange = providers.filter((p) => p.addresses.some((a) => {
@@ -47,6 +57,7 @@ export async function searchNearby(specialtyInput: string, locationInput: string
     const dLat = Math.abs(g.coords.lat - origin.coords.lat) * 69;
     return dLat <= radiusMi + 1;
   }));
+  lap({ id: "prefilter", kind: "DET", source: "code", in: providers.length, out: inRange.length, detail: `latitude band only (|Δlat| × 69 ≤ radius + 1 mi); unmapped addresses dropped` });
 
   // In parallel: licence batch, and one more geocode batch for in-range providers'
   // out-of-state locations so every location gets a real distance and buildView
@@ -60,6 +71,9 @@ export async function searchNearby(specialtyInput: string, locationInput: string
     geocodeAddresses(inRange.flatMap((p) => p.addresses.filter((a) => a.purpose !== "Mailing" && a.state !== origin.state))
       .map((a) => ({ key: addressKey(a.line1, a.postalCode || a.city), line1: a.line1, city: a.city, state: a.state, zip5: a.postalCode.slice(0, 5) }))),
   ]);
+
+  const lic = [...licenses.values()];
+  lap({ id: "licence", kind: "EXTERNAL", source: origin.state === "WA" ? "WA DOH credentials (data.wa.gov qxh8-f4bd)" : "not implemented for this state", in: inRange.filter((p) => p.enumerationType === "Individual").length, out: lic.length, detail: `match: ${["exact", "name", "ambiguous", "none", "error"].map((m) => `${lic.filter((l) => l.match === m).length} ${m}`).join(", ")} · organizations not checked` });
 
   // Organizations (NPI-2) of this specialty registered at each street address.
   const orgsAt = new Map<string, Set<string>>();
@@ -87,6 +101,7 @@ export async function searchNearby(specialtyInput: string, locationInput: string
     });
   }
   results.sort((a, b) => (a.nearest.distanceMi ?? 1e9) - (b.nearest.distanceMi ?? 1e9) || a.name.localeCompare(b.name));
+  lap({ id: "radius", kind: "DET", source: "code (Haversine) + baseline scorer", in: inRange.length, out: results.length, detail: `kept providers with ≥1 practice location within ${radiusMi} mi; baseline rule points computed (no web evidence)` });
 
   return {
     origin,
@@ -102,5 +117,6 @@ export async function searchNearby(specialtyInput: string, locationInput: string
     },
     source: "CMS NPPES API (federal NPI Registry)",
     notes,
+    trace,
   };
 }

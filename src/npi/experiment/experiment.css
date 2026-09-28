@@ -1,0 +1,68 @@
+/* /npi-list/experiment — plain engineering report styling. Deliberately no
+   hero art, no big green numbers: tables, monospace, and visible failures. */
+.ex { max-width: 1320px; margin: 0 auto; padding: 24px 28px 80px; color: var(--text); }
+.ex h1 { font-size: 22px; margin-top: 4px; }
+.ex h2 { font-size: 18px; margin: 36px 0 10px; display: flex; gap: 8px; align-items: center; }
+.ex h3 { font-size: 14px; margin: 20px 0 8px; }
+.ex h4 { font-size: 13px; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); }
+.ex section { border-top: 1px solid var(--line); padding-top: 4px; }
+.ex p { margin: 6px 0; max-width: 1000px; }
+.ex code, .ex-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.ex code { background: var(--line-soft); padding: 1px 4px; border-radius: 4px; }
+.ex-muted { color: var(--muted); }
+.ex-small { font-size: 12px; }
+.ex-good { color: var(--good); }
+.ex-bad { color: var(--bad); }
+.ex-top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+.ex-kicker { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.ex-nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+.ex-status { background: var(--warn-soft); border: 1px solid #f5d38a; border-radius: var(--radius); padding: 4px 18px 14px; }
+.ex-status h2 { color: var(--warn); margin-top: 12px; }
+.ex-status ul { margin: 6px 0; padding-left: 20px; }
+.ex-runbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #f5d38a; font-size: 13px; }
+.ex-runbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ex-btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.ex-btn:disabled { opacity: .7; cursor: default; }
+.ex-btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
+.ex-funnel { display: flex; flex-wrap: wrap; gap: 0; list-style: none; padding: 0; margin: 8px 0; }
+.ex-funnel li { display: flex; flex-direction: column; padding: 8px 14px; border: 1px solid var(--line); background: var(--card); margin: 0 -1px -1px 0; min-width: 120px; }
+.ex-funnel li::before { content: none; }
+.ex-funnel-n { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ex-funnel li span:last-child { font-size: 12px; color: var(--muted); }
+.ex-failures { }
+.ex-fail-list li { margin: 8px 0; max-width: 1100px; }
+.ex-table { width: 100%; border-collapse: collapse; background: var(--card); font-size: 12.5px; margin: 6px 0 10px; }
+.ex-table th, .ex-table td { border: 1px solid var(--line); padding: 5px 7px; vertical-align: top; text-align: left; }
+.ex-table th { background: var(--line-soft); font-weight: 600; }
+.ex-compact td, .ex-compact th { padding: 3px 6px; }
+.ex-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ex-src { font-size: 12px; color: var(--text-2); max-width: 220px; }
+.ex-url { word-break: break-all; max-width: 380px; font-size: 12px; }
+.ex-total td { font-weight: 600; background: var(--line-soft); }
+.ex-fails { margin: 0; padding-left: 16px; color: var(--bad); font-size: 12px; }
+.ex-kind { display: inline-block; font: 600 10.5px/1.6 ui-monospace, monospace; padding: 0 5px; border-radius: 4px; border: 1px solid; white-space: nowrap; }
+.ex-kind-det { color: #334155; border-color: #94a3b8; background: #f1f5f9; }
+.ex-kind-external { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; }
+.ex-kind-ai, .ex-kind-live { color: #7e22ce; border-color: #d8b4fe; background: #faf5ff; }
+.ex-kind-human { color: #15803d; border-color: #86efac; background: #f0fdf4; }
+.ex-v { display: inline-block; font: 600 10.5px/1.6 ui-monospace, monospace; padding: 0 5px; border-radius: 4px; }
+.ex-v-pass { background: var(--good-soft); color: var(--good); }
+.ex-v-fail { background: var(--bad); color: #fff; }
+.ex-v-unresolved { background: #e2e8f0; color: #334155; }
+.ex-v-na { color: var(--faint); }
+.ex-sum-v { margin-left: 6px; font-size: 12px; }
+.ex-rules li { margin: 4px 0; max-width: 1100px; }
+.ex-cols { display: flex; flex-wrap: wrap; gap: 14px; }
+.ex-cols > * { flex: 1 1 420px; }
+.ex-score td:first-child { max-width: 520px; }
+.ex-details, .ex-json { margin: 4px 0; }
+.ex-details summary, .ex-json summary { cursor: pointer; font-size: 13px; }
+.ex-json pre { max-height: 420px; overflow: auto; background: #0f172a; color: #e2e8f0; font-size: 11px; padding: 10px; border-radius: 6px; }
+.ex-prov { border: 1px solid var(--line); border-radius: 8px; background: var(--card); margin: 6px 0; }
+.ex-prov > summary { padding: 8px 12px; cursor: pointer; }
+.ex-prov-body { padding: 0 12px 12px; }
+.ex-q { display: inline-block; margin: 2px 4px 2px 0; }
+.ex-wrong { background: var(--bad-soft); border: 1px solid #fecaca; border-radius: var(--radius); padding: 4px 18px 10px; margin-top: 30px; }
+.ex-wrong h2 { color: var(--bad); }
+.ex-wrong li { margin: 6px 0; max-width: 1100px; }
+.ex-metrics td:first-child { min-width: 300px; }

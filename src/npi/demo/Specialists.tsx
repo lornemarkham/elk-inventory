@@ -11,7 +11,7 @@ import { Breakdown, Checks, ConflictCard, FaxBlock, Icon, ScorePill, SourceChips
 import { TERMS } from "../semantics";
 import { loadSnapshot } from "./snapshot";
 import { toDestination, type Destination } from "./model";
-import { assessDestination, groupDestinations, noDestinationReason, resultsMatchIntent, savedResearchFor, snapshotAppliesTo, type Assessment } from "./routing";
+import { groupDestinations, pickDestination, noDestinationReason, resultsMatchIntent, savedResearchFor, snapshotAppliesTo, type Assessment } from "./routing";
 const RADII = [5, 10, 25, 50];
 const STAGES = ["Querying the federal NPI Registry for the requested taxonomy", "Geocoding every practice address", "Measuring distance from the patient's area", "Checking Washington licences", "Loading saved research evidence"];
 
@@ -128,15 +128,15 @@ export default function Specialists({ specialty, location: typed, radius, age, f
 
       {researched.length > 0 ? (
         <>
-          <h3 className="rd-h3 rd-h3-good"><Icon name="check" size={15} /> Recommended destinations <span className="rd-h3-n">{recommended.length}</span> <span className="rd-live-tag"><span className="rd-live-dot" /> Real providers · real public evidence</span></h3>
-          <p className="rd-group-note">Match the requested referral type, no serious conflict in the evidence, a usable fax, and no known fit blocker for this synthetic patient.</p>
+          <h3 className="rd-h3 rd-h3-good"><Icon name="check" size={15} /> Recommended destinations <span className="rd-h3-n">{recommended.length}</span> <span className="rd-live-tag"><span className="rd-live-dot" /> Real providers · evidence is saved Sep-28 AI research or a live no-AI web check — see each card</span></h3>
+          <p className="rd-group-note">Match the requested referral type, no serious conflict in the evidence, a usable fax, and no known fit blocker for this synthetic patient. “Recommended” means no rule fired — it has not been shown to be correct. {researched.length} of {data.results.length} providers in range have any web evidence; the other {data.results.length - researched.length} are unresolved. <a href="/npi-list/experiment">How accurate is this? See the experiment ↗</a></p>
           {recommended.length ? (
             <div className="rd-cands">{recommended.map((c, i) => <CandidateCard key={c.r.npi} c={c} top={i === 0} ctx={ctx} onChoose={onChoose} />)}</div>
           ) : <div className="rd-card rd-note"><Icon name="info" /> No researched destination clears every check. See Needs review below.</div>}
           {review.length > 0 && (
             <>
               <h3 className="rd-h3 rd-h3-review"><Icon name="alert" size={15} /> Needs review <span className="rd-h3-n">{review.length}</span></h3>
-              <p className="rd-group-note">Kept visible on purpose: each one has a specific reason a coordinator should look before sending. High destination confidence alone does not make a destination right for this referral.</p>
+              <p className="rd-group-note">Kept visible on purpose: each one has a specific reason a coordinator should look before sending. A high destination-evidence score alone does not make a destination right for this referral.</p>
               <div className="rd-cands">{review.map((c) => <CandidateCard key={c.r.npi} c={c} top={false} ctx={ctx} onChoose={onChoose} />)}</div>
             </>
           )}
@@ -227,21 +227,14 @@ interface Candidate {
 
 function candidate(r: NearbyResult, view: ReferralView, requested: string, age: number | null, flagged: Set<string>): Candidate | null {
   const research = view.research!;
-  const usable = view.locations.filter((l) => l.status !== "former");
-  const inRadius = usable.filter((l) => l.inRadius).sort((a, b) => b.referral.score - a.referral.score);
-  const assess = (loc: PracticeLocation) => assessDestination({
+  const pick = pickDestination({
     requested: requested.split(" / ")[0], npiSpecialty: r.specialty, taxonomyCode: r.specialtyCode, npiActive: r.status === "Active", licence: view.license,
     researchSpecialty: { status: research.specialty.status, value: research.specialty.value }, identityConflict: research.identity.conflict,
-    location: loc, providerScore: view.providerScore.score, destinationScore: loc.referral.score, patientAge: age,
-    faxFailedThisSession: Boolean(loc.bestFax && flagged.has(`${r.npi}|${loc.bestFax.digits}`)),
+    locations: view.locations, providerScore: view.providerScore.score, patientAge: age,
+    faxFailed: (loc) => Boolean(loc.bestFax && flagged.has(`${r.npi}|${loc.bestFax.digits}`)),
   });
-  // Lead with the strongest in-range location that clears every check (e.g. an
-  // adult clinic rather than the same provider's children's-hospital site).
-  const ranked = (inRadius.length ? inRadius : usable).map((loc) => ({ loc, a: assess(loc) }));
-  const pick = ranked.find((x) => x.a.group === "recommended") ?? ranked[0];
   if (!pick) return null;
-  const best = pick.loc;
-  const assessment = pick.a;
+  const { best, assessment, inRadius } = pick;
   // The specialty conflict gets its own box, so it is left out of the tick list.
   const checks: Check[] = destinationChecks({
     active: r.status === "Active", loc: best, license: view.license, researched: true,
@@ -314,8 +307,8 @@ function CandidateCard({ c, top, ctx, onChoose }: { c: Candidate; top: boolean; 
       {why && (
         <div className="rd-why">
           <div className="rd-why-cols">
-            <Breakdown score={best.referral} title={`${TERMS.destination.label} for this location — ${best.referral.score}%`} />
-            <Breakdown score={view.providerScore} title={`${TERMS.verification.label} — ${view.providerScore.score}%`} />
+            <Breakdown score={best.referral} title={`${TERMS.destination.label} for this location — ${best.referral.score} rule points`} />
+            <Breakdown score={view.providerScore} title={`${TERMS.verification.label} — ${view.providerScore.score} rule points`} />
           </div>
           <div className="rd-why-src">
             <div><strong>Fax:</strong> {a.destination.fax.detail}</div>
@@ -339,7 +332,7 @@ function CandidateCard({ c, top, ctx, onChoose }: { c: Candidate; top: boolean; 
             <summary>{c.alternates.length} other location{c.alternates.length > 1 ? "s" : ""} in range</summary>
             {c.alternates.map((l) => (
               <div key={l.id} className="rd-alt">
-                <span>{l.name} · {l.distanceMi} mi · {l.referral.score}%</span>
+                <span>{l.name} · {l.distanceMi} mi · {l.referral.score} pts</span>
                 <button className="pi-btn" onClick={() => choose(l)}>Use this location</button>
               </div>
             ))}

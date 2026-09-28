@@ -5,10 +5,11 @@
 import type { ContactNumber, LicenseCheck } from "./types";
 
 // The three questions a destination card answers. Kept together so every page
-// uses the same words. None of them rates the clinician's quality.
+// uses the same words. None of them rates the clinician's quality. The two
+// numbers are rule-point totals (0–100), NOT probabilities — shown as "pts".
 export const TERMS = {
   verification: { label: "Provider verification", question: "Is this the provider record we think it is?" },
-  destination: { label: "Destination confidence", question: "Do we know where and how to send this referral?" },
+  destination: { label: "Destination evidence", question: "Do we know where and how to send this referral?" },
   fit: { label: "Referral fit", question: "Does it match the referral type the audiologist requested?" },
 } as const;
 

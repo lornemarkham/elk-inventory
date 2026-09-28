@@ -219,7 +219,7 @@ test("a researched Neurology provider with supporting evidence becomes a recomme
 test("a researched provider with insufficient/conflicting evidence stays Needs review with explicit reasons", () => {
   assert.deepEqual(assessDestination(neuro({ location: loc({ bestFax: null }) })).reviewReasons, ["No fax found for this destination"]);
   assert.match(assessDestination(neuro({ identityConflict: true })).reviewReasons.join(), /conflicts with this provider's identity/);
-  assert.match(assessDestination(neuro({ destinationScore: 30 })).reviewReasons.join(), /Destination evidence is weak \(30%\)/);
+  assert.match(assessDestination(neuro({ destinationScore: 30 })).reviewReasons.join(), /Destination evidence is weak \(30 of 100 rule points; threshold 50\)/);
   assert.match(assessDestination(neuro({ location: loc({ status: "possibly_stale" }) })).reviewReasons.join(), /may be out of date/);
   assert.match(assessDestination(neuro({ researchSpecialty: { status: "different", value: "Sleep Medicine" } })).reviewReasons.join(), /Sleep Medicine, not Neurology/);
   for (const i of [neuro({ location: loc({ bestFax: null }) }), neuro({ identityConflict: true })]) assert.equal(assessDestination(i).group, "review");

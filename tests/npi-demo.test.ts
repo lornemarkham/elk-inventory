@@ -200,7 +200,7 @@ test("specialty conflicts are stated with the actual values (Balogun, Song)", ()
   assert.equal(bal.group, "review");
   const weak = assess("1629168570", { npiSpecialty: "Otolaryngology", taxonomyCode: "207Y00000X", destinationScore: 30 });
   assert.equal(weak.group, "review");
-  assert.ok(weak.reviewReasons.includes("Destination evidence is weak (30%)"));
+  assert.ok(weak.reviewReasons.includes("Destination evidence is weak (30 of 100 rule points; threshold 50)"));
   const song = assess("1457222895", { npiSpecialty: "Otolaryngology, Otolaryngology/Facial Plastic Surgery", taxonomyCode: "207YX0905X", licence: WA("Audiologist License") });
   assert.deepEqual(song.verification.conflict!.rows.map((r) => r.source), ["NPI Registry", "Washington licence", "Current practice evidence"]);
   assert.equal(song.verification.conflict!.rows[1].value, "Audiologist (active)");
@@ -215,7 +215,7 @@ test("grouping keeps review cases, separately, and the machine phrase is gone", 
   assert.ok(g.review.some((c) => c.npi === "1033377064") && g.review.some((c) => c.npi === "1427046473") && g.review.some((c) => c.npi === "1457222895"));
   assert.ok(g.recommended.some((c) => c.npi === "1629168570") && g.recommended.some((c) => c.npi === "1487065926"));
   assert.ok(!readFileSync(new URL("../src/npi/ui.tsx", import.meta.url), "utf8").includes("Current specialty differs from NPI"));
-  assert.deepEqual([TERMS.verification.label, TERMS.destination.label, TERMS.fit.label], ["Provider verification", "Destination confidence", "Referral fit"]);
+  assert.deepEqual([TERMS.verification.label, TERMS.destination.label, TERMS.fit.label], ["Provider verification", "Destination evidence", "Referral fit"]);
 });
 
 test("fax semantic labels", () => {

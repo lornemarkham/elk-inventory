@@ -222,11 +222,11 @@ function LocationCard({ loc, view, rank }: { loc: PracticeLocation; view: Referr
         <div className="pi-phone">
           <div className="pi-fax-kind"><Icon name="phone" size={13} /> Phone</div>
           <div className="pi-fax-num pi-mono">{loc.phones[0]?.number ?? <span className="pi-muted">Not found</span>}</div>
-          {loc.phones[0] && <div className="pi-fax-label">{loc.fields.phone.confidence}% · {loc.fields.phone.basis}</div>}
+          {loc.phones[0] && <div className="pi-fax-label">{loc.fields.phone.confidence} pts · {loc.fields.phone.basis}</div>}
         </div>
         <div>
           <FaxBlock fax={fax} />
-          {fax && <div className="pi-fax-label">{loc.fields.fax.confidence}% · {loc.fields.fax.basis}</div>}
+          {fax && <div className="pi-fax-label">{loc.fields.fax.confidence} pts · {loc.fields.fax.basis}</div>}
         </div>
       </div>
       {fax && fax.faxKind !== "referral" && (
@@ -244,7 +244,7 @@ function LocationCard({ loc, view, rank }: { loc: PracticeLocation; view: Referr
 
       <div className="pi-loc-foot">
         <ScorePill label={TERMS.destination.label} score={loc.referral.score} onClick={() => setWhy(!why)} active={why} />
-        <button className="pi-link" onClick={() => setWhy(!why)}>Why {loc.referral.score}%?</button>
+        <button className="pi-link" onClick={() => setWhy(!why)}>Why {loc.referral.score} pts?</button>
         <div className="pi-loc-evidence">
           {confirmedBy.length ? <>Confirmed by: {confirmedBy.map((s) => <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className={`pi-cite pi-cite-${s.family}`}><span className="pi-cite-type">{FAMILY_LABEL[s.family]}</span> {s.name}</a>)}</> : <span className="pi-muted">Evidence: NPI record only</span>}
           {research && <span className="pi-muted"> · Last researched {formatDate(research.researchedAt)}</span>}
@@ -272,11 +272,11 @@ function ProviderCard({ view }: { view: ReferralView }) {
       </div>
       <p className="pi-muted" style={{ marginTop: 0 }}>{TERMS.verification.question} Checks the NPI identity, taxonomy, state licence and current practice evidence. It does not rate the clinician's quality.</p>
       {conflict && <ConflictCard c={conflict} />}
-      {why && <Breakdown score={view.providerScore} title={`Why ${view.providerScore.score}%?`} />}
+      {why && <Breakdown score={view.providerScore} title={`Why ${view.providerScore.score} rule points?`} />}
       <dl className="pi-kvs" style={{ marginTop: 16 }}>
         <div className="pi-kv"><dt>Name</dt><dd>{p.name}{p.credential ? `, ${p.credential}` : ""}</dd></div>
         <div className="pi-kv"><dt>Type</dt><dd>{p.enumerationType}</dd></div>
-        <div className="pi-kv"><dt>Identity (web)</dt><dd>{r ? (r.identity.conflict ? "Conflicting evidence" : r.identity.confirmed ? `Confirmed · ${r.identity.confidence}%` : "Not confirmed") : "Not researched"}{r && <> <SourceChips ids={r.identity.sourceIds} sources={r.sources} /></>}</dd></div>
+        <div className="pi-kv"><dt>Identity (web)</dt><dd>{r ? (r.identity.conflict ? "Conflicting evidence" : r.identity.confirmed ? `Confirmed · ${r.identity.confidence} pts` : "Not confirmed") : "Not researched"}{r && <> <SourceChips ids={r.identity.sourceIds} sources={r.sources} /></>}</dd></div>
         <div className="pi-kv"><dt>NPI last updated</dt><dd>{formatDate(p.lastUpdated)}</dd></div>
       </dl>
     </section>
@@ -427,11 +427,11 @@ function FieldsCard({ view, sources }: { view: ReferralView; sources: EvidenceSo
   ];
   return (
     <section className="pi-card">
-      <h2 className="pi-card-title"><Icon name="scale" /> Field confidence</h2>
+      <h2 className="pi-card-title"><Icon name="scale" /> Field evidence (rule points, not probabilities)</h2>
       <ul className="pi-fields">
         {rows.map(([label, f]) => (
           <li key={label}>
-            <div className="pi-fields-top"><span>{label}</span><span className={`pi-fields-pct pi-${f && f.confidence ? tone(f.confidence) : "none"}`}>{f && f.confidence ? `${f.confidence}%` : "—"}</span></div>
+            <div className="pi-fields-top"><span>{label}</span><span className={`pi-fields-pct pi-${f && f.confidence ? tone(f.confidence) : "none"}`}>{f && f.confidence ? `${f.confidence} pts` : "—"}</span></div>
             <div className="pi-fields-val">{f?.value ?? <span className="pi-muted">Unknown</span>}</div>
             <div className="pi-fields-basis">{f?.basis} {f && <SourceChips ids={f.sourceIds} sources={sources} />}</div>
           </li>
@@ -443,12 +443,12 @@ function FieldsCard({ view, sources }: { view: ReferralView; sources: EvidenceSo
 
 function HowScored() {
   return (
-    <Collapse title={<><Icon name="info" /> How confidence works</>}>
-      <p><strong>OpenAI proposes, code decides.</strong> AI searches the web, identifies which location each phone/fax belongs to and copies source labels verbatim. It never supplies a score.</p>
+    <Collapse title={<><Icon name="info" /> How the rule points work</>}>
+      <p><strong>OpenAI proposes, code decides — with a caveat.</strong> AI searches the web, identifies which location each phone/fax belongs to and copies source labels verbatim. It never supplies a number, but its yes/no and category judgements (identity confirmed, “different specialty”, source type for unknown domains, source currentness, “former” location, “about a different provider”) directly add or remove the points below.</p>
       <p>Deterministic code then drops sources web search didn't return, pages about other people, numbers that don't appear in the cited research text, and any “referral fax” whose source label doesn't say referral. It assigns source families by domain rule where it can.</p>
       <p><strong>{TERMS.verification.label}</strong> ({TERMS.verification.question.toLowerCase()}) = active NPI (35) + taxonomy match (10) + active WA licence by number (20) + identity on an official page (20) + specialty corroborated (10) + current affiliation official (5), minus conflicts/staleness.</p>
       <p><strong>{TERMS.destination.label}</strong> ({TERMS.destination.question.toLowerCase()}) = location on an official page (30; other source 18; NPI only 10) + extra source families (≤10) + phone (15–20) + fax (15; NPI only 5) + fax labelled referral (15 official / 8 other) + referral instructions (5) + current official source (5), minus stale/former location, fax disagreement, or a fax that belongs to another location.</p>
-      <p>Aggregators and NPI mirrors carry no weight; the NPI connector and CMS NPPES count once. Scores are an explainable product heuristic, not calibrated probabilities.</p>
+      <p>Aggregators and NPI mirrors carry no weight; the NPI connector and CMS NPPES count once. Scores are hand-weighted rule-point totals. They have never been calibrated against outcomes: 90 does not mean a 90% chance of being right.</p>
     </Collapse>
   );
 }

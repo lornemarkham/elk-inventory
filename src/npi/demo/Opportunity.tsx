@@ -10,7 +10,7 @@ import "./demo.css";
 
 type Status = "shown" | "sim" | "future";
 const STATUS: Record<Status, { label: string; cls: string }> = {
-  shown: { label: "Demonstrated with live data", cls: "rd-st-shown" },
+  shown: { label: "Demonstrated with real data (Seattle ENT AI research is a saved Sep-28 run)", cls: "rd-st-shown" },
   sim: { label: "Simulated in the demo", cls: "rd-st-sim" },
   future: { label: "Future experiment", cls: "rd-st-future" },
 };
@@ -61,6 +61,10 @@ export default function Opportunity() {
         <div className="rd-disclaimer">
           <Icon name="info" />
           <div>This prototype was created independently as a personal technical experiment using synthetic patient information and public provider data. It is not production software and does not represent a company product decision.</div>
+        </div>
+        <div className="rd-disclaimer">
+          <Icon name="alert" />
+          <div>This page was written before the approach was tested. Whether it routes referrals accurately and economically is <strong>not established</strong>. Measured failures, baselines and raw evidence are on <a href="/npi-list/experiment">the engineering experiment page</a>.</div>
         </div>
 
         <section className="rd-opp-lead">

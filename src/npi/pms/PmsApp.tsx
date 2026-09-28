@@ -429,7 +429,7 @@ function OutboundReferral({ st, onFind, onSend }: { st: PmsState; onFind: () => 
           <dt>Address</dt><dd>{d.address}{d.distanceMi != null && <span className="pi-muted"> · {d.distanceMi} mi from clinic</span>}</dd>
           <dt>Phone</dt><dd>{d.phone ?? "—"}</dd>
           <dt>Fax</dt><dd className="pi-mono">{d.fax} <span className="pi-muted">{d.kind === "controlled" ? "controlled test line" : d.faxKind === "referral" ? (d.faxChecked ? "referral fax · wording checked on source page" : "referral fax") : "general fax"}</span></dd>
-          {d.kind !== "controlled" && <><dt>{TERMS.verification.label}</dt><dd>{d.providerScore ?? "—"}%</dd><dt>{TERMS.destination.label}</dt><dd>{d.referralScore ?? "—"}%</dd></>}
+          {d.kind !== "controlled" && <><dt>{TERMS.verification.label}</dt><dd>{d.providerScore ?? "—"} pts</dd><dt>{TERMS.destination.label}</dt><dd>{d.referralScore ?? "—"} pts</dd></>}
           {d.npi && <><dt>NPI</dt><dd className="pi-mono">{d.npi}</dd></>}
           {d.faxSources.length > 0 && <><dt>Fax evidence</dt><dd>{d.faxSources.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="pmsx-src">{s.domain}</a>)}</dd></>}
         </dl>
@@ -656,7 +656,7 @@ function MatchPanel({ i, onDecide }: { i: InboxItem; onDecide: (i: InboxItem, co
         <div>{REFERRAL_APPOINTMENT.referral!.type} referral · {m.referralId}</div>
         <div>Appointment {fmtDay(REFERRAL_APPOINTMENT.at)} <span className="pi-mono pi-muted">{m.appointmentId}</span></div>
       </> : <div className="pmsx-nomatch">Patient only — not linked to a referral (not from the referral's destination, or no reference).</div>}
-      <div className="pmsx-match-score">Match evidence: {m.checks.filter((c) => c.ok).length} of {m.checks.length} checks · {m.score}%</div>
+      <div className="pmsx-match-score">Match evidence: {m.checks.filter((c) => c.ok).length} of {m.checks.length} checks · {m.score} rule pts</div>
       <ul className="pmsx-checks">{m.checks.map((c) => <li key={c.label} className={c.ok ? "ok" : "no"}><Icon name={c.ok ? "check" : "x"} size={12} /> <strong>{c.label}</strong> <span className="pi-muted">{c.detail}</span></li>)}</ul>
       <div className="pmsx-col-sub">If confirmed, the PMS will:</div>
       <ul className="pmsx-update">{m.update.map((u) => <li key={u}>{u}</li>)}</ul>

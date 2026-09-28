@@ -102,7 +102,7 @@ export function assessDestination(i: AssessInput): Assessment {
   if (i.location.status === "former") dIssues.push("Provider appears to have left this location");
   else if (i.location.status === "possibly_stale") dIssues.push("This location may be out of date");
   if (i.faxFailedThisSession) dIssues.push("A fake fax to this number failed in this demo session");
-  if (i.location.bestFax && i.destinationScore < WEAK_DESTINATION) dIssues.push(`Destination evidence is weak (${i.destinationScore}%)`);
+  if (i.location.bestFax && i.destinationScore < WEAK_DESTINATION) dIssues.push(`Destination evidence is weak (${i.destinationScore} of 100 rule points; threshold ${WEAK_DESTINATION})`);
   if (i.location.acceptingNewPatients && !i.location.acceptingNewPatients.accepting) dIssues.push("Source says this location is not accepting new patients");
 
   // Q3 — does it match the referral the audiologist requested? Deterministic
@@ -124,7 +124,35 @@ export function assessDestination(i: AssessInput): Assessment {
   };
 }
 
-// Recommended first by destination confidence then distance; review cases kept, separately.
+// ── Which of a researched provider's locations to lead with ────────────────
+// The strongest in-radius, non-former location that clears every check (e.g. an
+// adult clinic rather than the same provider's children's-hospital site); else
+// the strongest one. Shared by the demo cards and the experiment harness so both
+// run exactly the same rule. null = no usable location.
+export interface PickLocation {
+  name: string;
+  organization: string | null;
+  status: "current" | "possibly_stale" | "former" | "npi_only";
+  bestFax: ContactNumber | null;
+  acceptingNewPatients: { accepting: boolean } | null;
+  inRadius: boolean | null;
+  referral: { score: number };
+}
+
+export function pickDestination<L extends PickLocation>(
+  i: Omit<AssessInput, "location" | "destinationScore" | "faxFailedThisSession"> & { locations: L[]; faxFailed?: (loc: L) => boolean },
+): { best: L; assessment: Assessment; inRadius: L[] } | null {
+  const usable = i.locations.filter((l) => l.status !== "former");
+  const inRadius = usable.filter((l) => l.inRadius).sort((a, b) => b.referral.score - a.referral.score);
+  const ranked = (inRadius.length ? inRadius : usable).map((loc) => ({
+    loc,
+    a: assessDestination({ ...i, location: loc, destinationScore: loc.referral.score, faxFailedThisSession: Boolean(i.faxFailed?.(loc)) }),
+  }));
+  const pick = ranked.find((x) => x.a.group === "recommended") ?? ranked[0];
+  return pick ? { best: pick.loc, assessment: pick.a, inRadius } : null;
+}
+
+// Recommended first by destination evidence then distance; review cases kept, separately.
 export function groupDestinations<T extends { assessment: Assessment; distanceMi: number | null }>(list: T[]): { recommended: T[]; review: T[] } {
   const order = (a: T, b: T) => b.assessment.destination.score - a.assessment.destination.score || (a.distanceMi ?? 99) - (b.distanceMi ?? 99);
   return {

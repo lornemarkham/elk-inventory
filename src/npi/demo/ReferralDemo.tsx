@@ -120,6 +120,7 @@ export default function ReferralDemo() {
           <a href="/npi-list/fax-settings">Fax line</a>
           <button className="pi-link" onClick={() => setAbout(true)}>About this POC</button>
           <a href="/npi-list/opportunity">Why explore this? →</a>
+          <a href="/npi-list/experiment">Does it work? (experiment) →</a>
         </div>
       </header>
       <div className="rd-banner"><Icon name="shield" size={14} /> <strong>SYNTHETIC DEMO DATA</strong> — fictional patients, no real patient information. Fax sending to real providers is always simulated — nothing is ever sent to them. Only the synthetic controlled test destination can receive a real test fax.</div>
@@ -428,8 +429,8 @@ function DestinationSummary({ d }: { d: Destination }) {
         <span>{isControlled(d) ? "Referral fax — controlled test" : sem!.title}</span>
         <strong className="pi-mono">{d.fax}</strong>
       </div>
-      {d.referralScore !== null && <div className="rd-dest-row"><span>{TERMS.destination.label}</span><strong className={`rd-tone-${d.referralScore >= 80 ? "good" : d.referralScore >= 60 ? "ok" : "low"}`}>{d.referralScore}%</strong></div>}
-      {d.providerScore !== null && <div className="rd-dest-row"><span>{TERMS.verification.label}</span><strong>{d.providerScore}%</strong></div>}
+      {d.referralScore !== null && <div className="rd-dest-row"><span>{TERMS.destination.label}</span><strong className={`rd-tone-${d.referralScore >= 80 ? "good" : d.referralScore >= 60 ? "ok" : "low"}`}>{d.referralScore} pts</strong></div>}
+      {d.providerScore !== null && <div className="rd-dest-row"><span>{TERMS.verification.label}</span><strong>{d.providerScore} pts</strong></div>}
       {d.distanceMi !== null && <div className="rd-dest-row"><span>Distance</span><strong>{d.distanceMi} mi</strong></div>}
       {d.phone && <div className="rd-dest-row"><span>Phone</span><strong className="pi-mono">{d.phone}</strong></div>}
       <div className={`rd-dest-note ${d.faxChecked ? "rd-good" : "rd-caution"}`}>
@@ -610,7 +611,7 @@ function LiveFaxStep({ st, live, patient, set, onRestart }: { st: State; live: L
       <div className="rd-card rd-opev">
         <div className="rd-card-label">Operational fax evidence — separate from provider evidence</div>
         <p><strong>{ev.claim}</strong></p>
-        <p className="pi-muted">This does not establish: {ev.notProven.join("; ")}. It changes no provider verification, destination confidence or referral-fit result.</p>
+        <p className="pi-muted">This does not establish: {ev.notProven.join("; ")}. It changes no provider verification, destination evidence or referral-fit result.</p>
       </div>
 
       <div className="rd-card">
@@ -728,7 +729,7 @@ function SendStep({ st, set, onRetry, onAlternate, onTimeline }: { st: State; se
             <span>verify</span><Icon name="chevron" size={13} />
             <span>find an alternate</span>
           </div>
-          <div className="pi-muted rd-fine">This illustrates a future feedback loop. Simulated events never change the real provider confidence scores; the destination is only flagged in this browser session.</div>
+          <div className="pi-muted rd-fine">This illustrates a future feedback loop. Simulated events never change the real provider rule-point scores; the destination is only flagged in this browser session.</div>
         </div>
       )}
 
@@ -777,7 +778,7 @@ function TimelineStep({ st, patient, scenario, onRespond, onRestart }: { st: Sta
     { at: st.times.searched, title: "Destination search", detail: `${st.specialty} requested by the audiologist · ${st.found ?? "—"} registry matches within ${st.radius} miles`, tone: "real" },
     isControlled(d)
       ? { at: st.times.selected, title: "Controlled test destination selected", detail: `${d.provider} — synthetic test provider · ${d.fax}`, tone: "sim" as const }
-      : { at: st.times.selected, title: "Destination selected", detail: `${d.provider} — ${d.practice} · destination confidence ${d.referralScore}%`, tone: "real" as const },
+      : { at: st.times.selected, title: "Destination selected", detail: `${d.provider} — ${d.practice} · destination evidence ${d.referralScore} rule pts`, tone: "real" as const },
     { at: st.times.prepared, title: "Referral prepared", detail: attLabels.length ? `${attLabels.join(" + ")} attached` : "No attachments" },
     { at: st.times.reviewed, title: "Human reviewed", detail: "Referral approved by the audiologist" },
     ...st.failed.map((f) => ({ at: f.completedAt, title: "Fax failed", detail: `${f.id} · ${f.destination.practice} · no answer`, tone: "bad" as const })),
@@ -840,11 +841,11 @@ function InboundCard({ f }: { f: InboundFax }) {
       <dl className="rd-hook-grid">
         <dt>From</dt><dd>{f.from}</dd>
         <dt>Pages</dt><dd>{f.pages}</dd>
-        <dt>Classification</dt><dd>{f.classification} <span className="pi-muted">· {f.classificationConfidence}%</span></dd>
+        <dt>Classification</dt><dd>{f.classification} <span className="pi-muted">· {f.classificationConfidence} (fixed simulated value)</span></dd>
         <dt>Matched patient</dt><dd>{f.matchedPatient} <span className="pi-muted">· by {f.matchBasis.join(", ")}</span></dd>
         <dt>Matched referral</dt><dd>{f.matchedReferral}</dd>
         <dt>Extracted status</dt><dd className="pi-good"><strong>{f.extractedStatus}</strong> · {fmtAppt(f.appointment)} with {f.appointmentWith}</dd>
-        <dt>Confidence</dt><dd>{f.confidence}%</dd>
+        <dt>Confidence</dt><dd>{f.confidence} (fixed simulated value)</dd>
       </dl>
       <div className="pi-muted rd-fine">Entirely simulated — no fax was received and no model read anything. This shows what an inbound AI step could feel like.</div>
     </div>

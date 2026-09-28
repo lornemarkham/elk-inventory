@@ -80,12 +80,12 @@ export function referralFaxesIn(text: string): { digits: string; label: string }
 // For every "referral" fax we fetch the cited pages and require the number and
 // "referral"/"intake" wording within ~160 characters of each other.
 
-export function pageSupportsReferralFax(pageText: string, digits: string): boolean {
+export function pageSupportsReferralFax(pageText: string, digits: string, referralPage = false): boolean {
   const text = pageText.replace(/\s+/g, " ");
   const re = new RegExp(`\\(?${digits.slice(0, 3)}\\)?[\\s.\\-]?${digits.slice(3, 6)}[\\s.\\-]?${digits.slice(6)}`, "g");
   for (const m of text.matchAll(re)) {
     const win = text.slice(Math.max(0, m.index! - 160), m.index! + m[0].length + 60);
-    if (/referr|intake/i.test(win) && /fax/i.test(win)) return true;
+    if (/fax/i.test(win) && (referralPage || /referr|intake/i.test(win))) return true;
   }
   return false;
 }
@@ -94,25 +94,40 @@ function htmlToText(html: string): string {
   return html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&");
 }
 
-async function fetchPageText(url: string): Promise<string | null> {
+// A page whose own title or URL is about referrals ("Patient Referrals").
+export function isReferralPage(url: string, html: string): boolean {
+  const title = html.match(/<title[^>]*>([^<]*)/i)?.[1] ?? "";
+  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? "";
+  let path = "";
+  try { path = new URL(url).pathname; } catch { /* ignore */ }
+  return /referr/i.test(`${title} ${h1.replace(/<[^>]+>/g, " ")} ${path}`);
+}
+
+async function fetchPageText(url: string): Promise<{ text: string; referralPage: boolean } | null> {
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (referral-demo source check)", Accept: "text/html" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
     const type = res.headers.get("content-type") ?? "";
     if (!res.ok || !type.includes("html")) return null;
-    return htmlToText(await res.text());
+    const html = await res.text();
+    return { text: htmlToText(html), referralPage: isReferralPage(res.url || url, html) };
   } catch {
     return null;
   }
 }
 
 export async function checkReferralLabels(locations: PracticeLocation[], sources: EvidenceSource[], dropped: ReferralResearch["dropped"]): Promise<void> {
-  const pages = new Map<string, Promise<string | null>>();
+  const pages = new Map<string, ReturnType<typeof fetchPageText>>();
   const page = (url: string) => { if (!pages.has(url)) pages.set(url, fetchPageText(url)); return pages.get(url)!; };
   await Promise.all(locations.flatMap((l) => l.faxes.filter((f) => f.faxKind === "referral").map(async (f) => {
     const urls = f.sourceIds.map((id) => sources.find((s) => s.id === id)?.url).filter((u): u is string => Boolean(u));
     const texts = await Promise.all(urls.map(page));
-    const readable = texts.filter((t): t is string => t !== null);
-    if (readable.some((t) => pageSupportsReferralFax(t, f.digits))) { f.labelCheck = "page"; return; }
+    const readable = texts.filter((t): t is { text: string; referralPage: boolean } => t !== null);
+    if (readable.some((t) => pageSupportsReferralFax(t.text, f.digits))) { f.labelCheck = "page"; return; }
+    if (readable.some((t) => t.referralPage && pageSupportsReferralFax(t.text, f.digits, true))) {
+      f.labelCheck = "page";
+      f.label = "Fax listed on the source's referrals page";
+      return;
+    }
     if (readable.length === 0) { f.labelCheck = "unverifiable"; return; }
     f.faxKind = "general";
     f.labelCheck = undefined;
@@ -125,7 +140,7 @@ export async function checkReferralLabels(locations: PracticeLocation[], sources
 // NPI taxonomy ("Pediatric Otolaryngology" vs "Otolaryngology" is the same field).
 const GENERIC = new Set(["surgery", "medicine", "general", "clinic", "services", "specialist", "physician", "doctor", "care"]);
 function stems(s: string): Set<string> {
-  const t = s.toLowerCase().replace(/\bent\b|ear,? nose,? (and|&) throat|head (and|&) neck/g, " otolaryngology ");
+  const t = s.toLowerCase().replace(/\bent\b|ear,? nose,? (and|&) throat|head (and|&) neck|\b(neuro)?otolog\w*|\brhinolog\w*|\blaryngolog\w*/g, " otolaryngology ");
   return new Set(t.split(/[^a-z]+/).filter((w) => w.length >= 5 && !GENERIC.has(w)).map((w) => w.slice(0, 6)));
 }
 export function specialtyReallyDiffers(stated: string | null, taxonomies: string[]): boolean {

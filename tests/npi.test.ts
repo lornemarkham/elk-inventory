@@ -24,6 +24,7 @@ const COORDS: Record<string, [number, number]> = {
 const PAGES: Record<string, string> = {
   "https://www.uwmedicine.org/a": "<html><body><h2>ENT clinic</h2><p>Appointments 206-598-4022</p><p><b>Referral Fax:</b> (206) 598-7777</p></body></html>",
   "https://www.seattlechildrens.org/x": "<html><body>Fax 206-985-3392. Providers: fax the New Appointment Request Form to 206-985-3121, Attn: Clinical Intake.</body></html>",
+  "https://ent.example.edu/patient-referrals/": "<html><head><title>Patient Referrals | UW Otolaryngology</title></head><body><h1>Patient Referrals</h1><p>Refer patients, consult with a specialist and more.</p>" + " filler text".repeat(40) + "<p>University of Washington Medical Center Phone: (206) 598-4022, Option 8 Fax: (206) 598-6611</p></body></html>",
   "https://optum.example/tonn": "<html><body>Optum - Edmonds 21401 72nd Ave W Phone: 1-425-259-0966 Fax: 1-425-259-1155</body></html>",
 };
 async function withFetch<T>(extra: (url: string, init?: RequestInit) => Response | null, fn: () => Promise<T>): Promise<T> {
@@ -439,6 +440,14 @@ test("referral-fax claims are checked against the live source page", async () =>
   assert.equal(f.faxKind, "general", "page contradicts the model's wording → plain fax");
   assert.ok(r.dropped.some((d) => d.reason.includes("not found next to this number on the source page")));
 
+  // A fax on a page that is itself the practice's referrals page counts.
+  const p3 = emptyParsed();
+  p3.sources = [meta("S1", "first_party")];
+  p3.locations = [loc({ line1: "1959 NE Pacific St", sourceIds: ["S1"], faxes: [{ number: "206-598-6611", label: "Patient referrals fax", faxKind: "referral", sourceIds: ["S1"] }] })];
+  const r3 = await finalize(p3, [S("S1", "https://ent.example.edu/patient-referrals/")], "Fax (206) 598-6611");
+  assert.equal(r3.locations[0].bestFax?.faxKind, "referral");
+  assert.equal(r3.locations[0].bestFax?.labelCheck, "page");
+
   // Page unavailable (404/PDF): kept, flagged unverifiable, reduced credit.
   const p2 = emptyParsed();
   p2.sources = [meta("S1", "first_party")];
@@ -459,4 +468,5 @@ test("'different specialty' verdict only stands without taxonomy overlap", async
   assert.equal(specialtyReallyDiffers("Aesthetic medicine and weight loss", ["Otolaryngology"]), true);
   assert.equal(specialtyReallyDiffers("Audiology", ["Otolaryngology, Otolaryngology/Facial Plastic Surgery"]), true);
   assert.equal(specialtyReallyDiffers("Audiologist", ["Audiologist"]), false);
+  assert.equal(specialtyReallyDiffers("Neurotology and Otology", ["Otolaryngology"]), false);
 });

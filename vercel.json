@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/npi-list", "destination": "/npi-list/index.html" },
+    { "source": "/npi-list/(.*)", "destination": "/npi-list/index.html" },
     { "source": "/((?!api/|@|.*\\..*).*)", "destination": "/index.html" }
   ]
 }

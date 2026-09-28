@@ -1,7 +1,50 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'node:path'
+
+// TEMPORARY NPI demo: in `vite` dev, serve api/npi-*.ts (Web Request→Response
+// handlers) so /npi-list works without `vercel dev`. Production uses Vercel's
+// own api/ functions; this plugin only runs in the dev server.
+function npiDevApi(): Plugin {
+  return {
+    name: 'npi-dev-api',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        // Mirror vercel.json's /npi-list rewrite.
+        if (req.url && /^\/npi-list(\/)?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/npi-list\/?/, '/npi-list/index.html')
+        const m = req.url?.match(/^\/api\/(npi-(?:search|provider|validate))(\?.*)?$/)
+        if (!m) return next()
+        try {
+          const mod = await server.ssrLoadModule(`/api/${m[1]}.ts`)
+          const response: Response = await mod.default(new Request(`http://localhost${req.url}`))
+          res.statusCode = response.status
+          response.headers.forEach((v, k) => res.setHeader(k, v))
+          if (!response.body) return res.end()
+          const reader = response.body.getReader()
+          for (;;) {
+            const { done, value } = await reader.read()
+            if (done) break
+            res.write(value)
+          }
+          res.end()
+        } catch (err) {
+          next(err)
+        }
+      })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), npiDevApi()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(import.meta.dirname, 'index.html'),
+        npi: resolve(import.meta.dirname, 'npi-list/index.html'),
+      },
+    },
+  },
 })

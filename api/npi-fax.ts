@@ -2,12 +2,13 @@
 // POST JSON:
 //   { action: "config" }                                  → is SRFax configured here? (no secrets)
 //   { action: "send", destinationId, scenarioId, reference } → Queue_Fax to the controlled number only
-//   { action: "status", faxId }                           → Get_FaxStatus
-// send/status need the demo key (X-Demo-Key). Real providers are refused: only
-// the controlled synthetic destination id may send, and the number is fixed
-// server-side (api/_npi-fax.ts). An SRFax failure is returned as a failure.
-import { demoKeyOk } from "./_npi-guard";
-import { LIVE_TO, SRFAX_URL, faxStatusForm, liveDestinationAllowed, parseQueue, parseStatus, queueFaxForm, referralLines, srfaxConfig, textPdf } from "./_npi-fax";
+//   { action: "status", faxId, statusToken }              → Get_FaxStatus
+// No access key (private POC): the boundary is that only the controlled
+// synthetic destination id may send, the number is fixed server-side
+// (api/_npi-fax.ts), the PDF is built here from a canned scenario, and sends
+// are rate limited. status needs the token issued with the send.
+// An SRFax failure is returned as a failure.
+import { LIVE_TO, SRFAX_URL, faxStatusForm, statusToken, liveDestinationAllowed, parseQueue, parseStatus, queueFaxForm, referralLines, srfaxConfig, textPdf } from "./_npi-fax";
 import { CONTROLLED_FAX } from "../src/npi/demo/controlled";
 
 export const config = { runtime: "edge" };
@@ -35,7 +36,6 @@ export default async function handler(req: Request): Promise<Response> {
   if (body.action === "send") {
     // Destination check first: a real provider never gets further than this.
     if (!liveDestinationAllowed(body.destinationId)) return json({ ok: false, code: "forbidden", error: "Live fax is only available for the controlled synthetic test destination. Real providers are always simulated." }, 403);
-    if (!(await demoKeyOk(req))) return json({ ok: false, code: "locked", error: "Live test fax needs the demo access key." }, 401);
     if (!cfg) return json({ ok: false, code: "not_configured", error: "SRFax is not configured on this server (SRFAX_ACCESS_ID, SRFAX_ACCESS_PWD, SRFAX_CALLER_ID, SRFAX_SENDER_EMAIL)." }, 503);
     const reference = String(body.reference ?? "").replace(/[^A-Z0-9-]/gi, "").slice(0, 20) || "SYNTH-TEST";
     const lines = referralLines(String(body.scenarioId ?? ""), reference);
@@ -47,7 +47,7 @@ export default async function handler(req: Request): Promise<Response> {
     const submittedAt = new Date().toISOString();
     try {
       const r = parseQueue(await srfax(queueFaxForm(cfg, textPdf(lines), reference)));
-      return r.ok ? json({ ok: true, faxId: r.faxId, to: LIVE_TO, submittedAt }) : json({ ok: false, error: r.error, submittedAt }, 502);
+      return r.ok ? json({ ok: true, faxId: r.faxId, statusToken: await statusToken(cfg, r.faxId), to: LIVE_TO, submittedAt }) : json({ ok: false, error: r.error, submittedAt }, 502);
     } catch (err) {
       console.error("[npi-fax] send", (err as Error).message);
       return json({ ok: false, error: "Couldn't reach SRFax — the fax may or may not have been queued. Check the SRFax portal before retrying.", submittedAt }, 502);
@@ -55,10 +55,10 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (body.action === "status") {
-    if (!(await demoKeyOk(req))) return json({ ok: false, code: "locked", error: "Needs the demo access key." }, 401);
     if (!cfg) return json({ ok: false, code: "not_configured", error: "SRFax is not configured on this server." }, 503);
     const faxId = String(body.faxId ?? "").replace(/\D/g, "");
     if (!faxId) return json({ ok: false, error: "faxId required" }, 400);
+    if (body.statusToken !== (await statusToken(cfg, faxId))) return json({ ok: false, code: "forbidden", error: "Status is only available for faxes sent from this demo." }, 403);
     try {
       const r = parseStatus(await srfax(faxStatusForm(cfg, faxId)));
       return r.ok ? json({ ok: true, checkedAt: new Date().toISOString(), status: r.status }) : json({ ok: false, error: r.error }, 502);

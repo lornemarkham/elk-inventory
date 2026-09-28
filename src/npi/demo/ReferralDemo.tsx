@@ -17,7 +17,6 @@ import {
 import { REFERRAL_TYPES, intentKey } from "./routing";
 import { CONTROLLED, controlledDestination, controlledFit, isControlled } from "./controlled";
 import { applySend, applyStatus, canSendLive, liveDone, liveFaxConfig, liveFaxStatus, newLiveFax, operationalEvidence, sendLiveFax, type LiveFax } from "./live";
-import { getDemoKey, setDemoKey } from "../api";
 import "./demo.css";
 
 type Step = "patient" | "intent" | "search" | "prepare" | "review" | "send" | "timeline" | "live";
@@ -506,11 +505,9 @@ function ReviewStep({ st, patient, scenario, set, onBack, onSend, onSendLive }: 
 // ── CONTROLLED LIVE FAX TEST (synthetic destination only) ──────────────────
 
 function LiveSendPanel({ scenario, approved, onSendLive }: { scenario: Scenario; approved: boolean; onSendLive: () => void }) {
-  const [cfg, setCfg] = useState<boolean | null>(null);
-  const [key, setKey] = useState(getDemoKey() ?? "");
+  const [cfg, setCfg] = useState<{ ok: boolean; configured: boolean } | null>(null);
   const [confirm, setConfirm] = useState(false);
-  useEffect(() => { liveFaxConfig().then((c) => setCfg(c.configured)); }, []);
-  const hasKey = Boolean(getDemoKey());
+  useEffect(() => { liveFaxConfig().then(setCfg); }, []);
   return (
     <div className="rd-card rd-livebox">
       <div className="rd-live-title"><Icon name="fax" /> CONTROLLED LIVE FAX TEST</div>
@@ -522,20 +519,15 @@ function LiveSendPanel({ scenario, approved, onSendLive }: { scenario: Scenario;
         <li>SRFax credentials stay on the server. A failure is shown as a failure.</li>
       </ul>
       {cfg === null ? <div className="pi-muted"><span className="pi-spinner" /> Checking the fax service…</div>
-        : !cfg ? <div className="rd-live-off"><Icon name="alert" size={14} /> SRFax is not configured on this server, so the live test is unavailable. The simulated send below still works.</div>
+        : !cfg.ok ? <div className="rd-live-off"><Icon name="alert" size={14} /> Configuration error: couldn't reach the fax service (/api/npi-fax), so the live test is unavailable. The simulated send below still works.</div>
+        : !cfg.configured ? <div className="rd-live-off"><Icon name="alert" size={14} /> Configuration error: SRFax credentials are not set in this server's environment, so the live test is unavailable. The simulated send below still works.</div>
         : (
           <>
-            {!hasKey && (
-              <form className="pi-keyform rd-key" onSubmit={(e) => { e.preventDefault(); setDemoKey(key); setKey(key.trim()); }}>
-                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Demo access key" aria-label="Demo access key" />
-                <button className="pi-btn" type="submit">Save key</button>
-              </form>
-            )}
             <label className="rd-approve">
               <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
               <span>Send one real synthetic test fax to {CONTROLLED.fax}.</span>
             </label>
-            <button className="pi-btn pi-btn-primary pi-btn-lg rd-send-live" disabled={!approved || !confirm || !getDemoKey()} onClick={onSendLive}><Icon name="fax" /> Send CONTROLLED LIVE FAX TEST</button>
+            <button className="pi-btn pi-btn-primary pi-btn-lg rd-send-live" disabled={!approved || !confirm} onClick={onSendLive}><Icon name="fax" /> Send CONTROLLED LIVE FAX TEST</button>
           </>
         )}
     </div>
@@ -550,9 +542,9 @@ function LiveFaxStep({ st, live, patient, set, onRestart }: { st: State; live: L
   const d = st.destination!;
   const done = liveDone(live);
   const refresh = () => {
-    if (!live.faxId) return;
+    if (!live.faxId || !live.statusToken) return;
     const id = live.faxId;
-    liveFaxStatus(id).then((r) => set((s) => (s.live?.faxId === id ? { live: applyStatus(s.live, r) } : {})));
+    liveFaxStatus(id, live.statusToken).then((r) => set((s) => (s.live?.faxId === id ? { live: applyStatus(s.live, r) } : {})));
   };
   useEffect(() => {
     if (!live.faxId || done || polls >= LIVE_POLL_MAX) return;

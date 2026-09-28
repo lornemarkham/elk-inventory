@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  LIVE_TO, DOC_BANNER, faxStatusForm, liveDestinationAllowed, parseQueue, parseStatus, phaseOf, queueFaxForm, referralLines, srfaxConfig, textPdf,
+  LIVE_TO, DOC_BANNER, faxStatusForm, liveDestinationAllowed, statusToken, parseQueue, parseStatus, phaseOf, queueFaxForm, referralLines, srfaxConfig, textPdf,
 } from "../api/_npi-fax.ts";
 import handler from "../api/npi-fax.ts";
 import { CONTROLLED, controlledDestination } from "../src/npi/demo/controlled.ts";
@@ -13,9 +13,6 @@ import { assessDestination, noDestinationReason, type AssessInput } from "../src
 import type { Destination } from "../src/npi/demo/model.ts";
 
 const ENV = { SRFAX_ACCESS_ID: "12345", SRFAX_ACCESS_PWD: "pw-test", SRFAX_CALLER_ID: "(778) 506-2042", SRFAX_SENDER_EMAIL: "test@example.com" };
-// NPI_DEMO_KEY overrides the built-in demo key (api/_npi-guard.ts), so tests never touch the real one.
-const DEMO_KEY = "test-demo-key";
-process.env.NPI_DEMO_KEY = DEMO_KEY;
 
 const REAL: Destination = {
   kind: "researched", reviewReasons: [], npi: "1629168570", provider: "Clifford Robert Hume, MD", specialty: "Otolaryngology", practice: "UW Medicine",
@@ -40,8 +37,8 @@ function mockFetch(reply: (form: URLSearchParams) => unknown) {
   return { calls, restore: () => { globalThis.fetch = orig; } };
 }
 
-const call = (body: unknown, key: string | null = DEMO_KEY) =>
-  handler(new Request("http://x/api/npi-fax", { method: "POST", headers: { "Content-Type": "application/json", ...(key ? { "X-Demo-Key": key } : {}) }, body: JSON.stringify(body) }));
+const call = (body: unknown) =>
+  handler(new Request("http://x/api/npi-fax", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
 
 test("live destination is hard-bounded to (778) 506-2042", () => {
   assert.equal(LIVE_TO, "17785062042");
@@ -75,15 +72,15 @@ test("a real provider can never invoke SRFax — server refuses before any fetch
   } finally { m.restore(); }
 });
 
-test("the request cannot choose the number; demo key and config are required", async () => {
+test("the request cannot choose the number; no access key, but config is required", async () => {
   const m = mockFetch(() => ({ Status: "Success", Result: "987654" }));
   try {
     await withEnv(ENV, async () => {
-      assert.equal((await call({ action: "send", destinationId: CONTROLLED.id, scenarioId: "F" }, null)).status, 401);
       const res = await call({ action: "send", destinationId: CONTROLLED.id, scenarioId: "F", sToFaxNumber: "12065986611", to: "12065986611", fax: "(206) 598-6611" });
       const body = await res.json();
       assert.equal(res.status, 200);
       assert.deepEqual({ ok: body.ok, faxId: body.faxId, to: body.to }, { ok: true, faxId: "987654", to: "17785062042" });
+      assert.equal(body.statusToken, await statusToken(srfaxConfig(ENV)!, "987654"));
     });
     assert.equal(m.calls.length, 1);
     assert.equal(m.calls[0].get("sToFaxNumber"), "17785062042");
@@ -92,6 +89,20 @@ test("the request cannot choose the number; demo key and config are required", a
   // Not configured → explicit 503, never a fake success.
   const res = await call({ action: "send", destinationId: CONTROLLED.id, scenarioId: "F" });
   if (!process.env.SRFAX_ACCESS_ID) assert.equal(res.status, 503);
+});
+
+test("status needs the server-issued token for that fax", async () => {
+  const m = mockFetch(() => ({ Status: "Success", Result: [{ SentStatus: "Sent", ToFaxNumber: "17785062042" }] }));
+  try {
+    await withEnv(ENV, async () => {
+      const tok = await statusToken(srfaxConfig(ENV)!, "555");
+      assert.equal((await call({ action: "status", faxId: "556", statusToken: tok })).status, 403);
+      assert.equal((await call({ action: "status", faxId: "555" })).status, 403);
+      assert.equal((await call({ action: "status", faxId: "555", statusToken: tok })).status, 200);
+      assert.notEqual(tok, await statusToken(srfaxConfig({ ...ENV, SRFAX_ACCESS_PWD: "other" })!, "555"));
+    });
+    assert.equal(m.calls.length, 1);
+  } finally { m.restore(); }
 });
 
 test("SRFax credentials stay server-side", async () => {
@@ -136,7 +147,7 @@ test("SRFax submission ID and status are preserved verbatim", () => {
   assert.ok(st.ok);
   assert.equal(st.ok && st.status.sentStatus, "Sent");
   assert.equal(st.ok && st.status.pages, 1);
-  let l = applySend(newLiveFax("SYN-1"), { ok: true, faxId: "123456", to: LIVE_TO, submittedAt: "2026-09-28T22:00:00Z" });
+  let l = applySend(newLiveFax("SYN-1"), { ok: true, faxId: "123456", statusToken: "t", to: LIVE_TO, submittedAt: "2026-09-28T22:00:00Z" });
   assert.equal(l.faxId, "123456");
   assert.equal(l.phase, "submitted");
   l = applyStatus(l, { ok: true, checkedAt: "2026-09-28T22:00:10Z", status: { ...(st.ok ? st.status : {} as SrfaxStatus), sentStatus: "In Progress", phase: "in_progress" } });
@@ -165,16 +176,16 @@ test("SRFax failure remains a failure", async () => {
   const l = applySend(newLiveFax("SYN-2"), { ok: false, error: "SRFax: Insufficient funds" });
   assert.equal(l.phase, "error");
   assert.equal(l.faxId, null);
-  const failed = applyStatus(applySend(newLiveFax("SYN-3"), { ok: true, faxId: "9", to: LIVE_TO, submittedAt: "t" }), { ok: true, checkedAt: "t2", status: { sentStatus: "Failed", phase: "failed", errorCode: "No Answer", dateQueued: null, dateSent: null, epochTime: null, toFaxNumber: LIVE_TO, pages: 0, duration: 0, remoteId: null } });
+  const failed = applyStatus(applySend(newLiveFax("SYN-3"), { ok: true, faxId: "9", statusToken: "t", to: LIVE_TO, submittedAt: "t" }), { ok: true, checkedAt: "t2", status: { sentStatus: "Failed", phase: "failed", errorCode: "No Answer", dateQueued: null, dateSent: null, epochTime: null, toFaxNumber: LIVE_TO, pages: 0, duration: 0, remoteId: null } });
   assert.equal(failed.phase, "failed");
   assert.match(operationalEvidence(failed).claim, /failed \(No Answer\)/);
   // A failed status LOOKUP is not reported as a fax failure or success.
-  const lookup = applyStatus(applySend(newLiveFax("SYN-4"), { ok: true, faxId: "9", to: LIVE_TO, submittedAt: "t" }), { ok: false, error: "SRFax: timeout" });
+  const lookup = applyStatus(applySend(newLiveFax("SYN-4"), { ok: true, faxId: "9", statusToken: "t", to: LIVE_TO, submittedAt: "t" }), { ok: false, error: "SRFax: timeout" });
   assert.equal(lookup.phase, "submitted");
 });
 
 test("operational fax evidence is not provider, ownership, referral-purpose or fit evidence", () => {
-  const sent = applyStatus(applySend(newLiveFax("SYN-5"), { ok: true, faxId: "1", to: LIVE_TO, submittedAt: "t" }), { ok: true, checkedAt: "t", status: { sentStatus: "Sent", phase: "sent", errorCode: null, dateQueued: null, dateSent: "d", epochTime: null, toFaxNumber: LIVE_TO, pages: 1, duration: 30, remoteId: null } });
+  const sent = applyStatus(applySend(newLiveFax("SYN-5"), { ok: true, faxId: "1", statusToken: "t", to: LIVE_TO, submittedAt: "t" }), { ok: true, checkedAt: "t", status: { sentStatus: "Sent", phase: "sent", errorCode: null, dateQueued: null, dateSent: "d", epochTime: null, toFaxNumber: LIVE_TO, pages: 1, duration: 30, remoteId: null } });
   const ev = operationalEvidence(sent);
   assert.equal(ev.claim, "SRFax reports successful delivery to this fax endpoint.");
   assert.equal(ev.notProven.length, 4);
@@ -217,4 +228,16 @@ test("a researched provider with insufficient/conflicting evidence stays Needs r
 test("research that can't establish any current location says why (no destination manufactured)", () => {
   assert.match(noDestinationReason([]), /no practice location/);
   assert.match(noDestinationReason([{ status: "former" }, { status: "former" }]), /left every known location/);
+});
+
+// Last: the per-isolate send counter is module state and would starve later tests.
+test("live sends are rate limited", async () => {
+  const m = mockFetch(() => ({ Status: "Success", Result: "1" }));
+  try {
+    await withEnv(ENV, async () => {
+      const codes: number[] = [];
+      for (let i = 0; i < 4; i++) codes.push((await call({ action: "send", destinationId: CONTROLLED.id, scenarioId: "F" })).status);
+      assert.equal(codes.at(-1), 429);
+    });
+  } finally { m.restore(); }
 });

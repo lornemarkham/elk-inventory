@@ -159,6 +159,14 @@ export function faxStatusForm(cfg: SrfaxConfig, faxId: string): URLSearchParams 
   return new URLSearchParams({ action: "Get_FaxStatus", access_id: cfg.accessId, access_pwd: cfg.accessPwd, sFaxDetailsID: faxId, sResponseFormat: "JSON" });
 }
 
+// Status lookups need a token the server issued with the send, so a public
+// caller can't read other faxes on the account by guessing FaxDetailsIDs.
+export async function statusToken(cfg: SrfaxConfig, faxId: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(`npi-fax-status:${cfg.accessPwd}`), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(faxId));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // ── Responses (SRFax's own vocabulary is kept verbatim) ─────────────────────
 
 export type QueueResult = { ok: true; faxId: string } | { ok: false; error: string };

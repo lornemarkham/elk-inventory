@@ -6,7 +6,6 @@
 // What SRFax reports is OPERATIONAL evidence about a transmission. It is kept in
 // its own record (LiveFax), never merged into the Destination, and never feeds
 // provider verification, destination confidence or referral fit.
-import { getDemoKey } from "../api";
 import { CONTROLLED } from "./controlled";
 import type { Destination } from "./model";
 
@@ -32,6 +31,7 @@ export interface LiveFax {
   to: string; // always the controlled number
   phase: "submitting" | "submitted" | "in_progress" | "sent" | "failed" | "error";
   faxId: string | null; // SRFax FaxDetailsID
+  statusToken: string | null; // issued by the server with the send; required for status lookups
   submittedAt: string;
   lastCheckedAt: string | null;
   status: SrfaxStatus | null; // latest Get_FaxStatus result, verbatim
@@ -42,16 +42,16 @@ export interface LiveFax {
 export const liveDone = (l: LiveFax) => l.phase === "sent" || l.phase === "failed" || l.phase === "error";
 
 export function newLiveFax(reference: string, now = new Date()): LiveFax {
-  return { mode: "live", reference, to: CONTROLLED.fax, phase: "submitting", faxId: null, submittedAt: now.toISOString(), lastCheckedAt: null, status: null, error: null, events: [{ at: now.toISOString(), label: "Prepared", detail: "Synthetic test referral PDF built on the server from the canned scenario" }] };
+  return { mode: "live", reference, to: CONTROLLED.fax, phase: "submitting", faxId: null, statusToken: null, submittedAt: now.toISOString(), lastCheckedAt: null, status: null, error: null, events: [{ at: now.toISOString(), label: "Prepared", detail: "Synthetic test referral PDF built on the server from the canned scenario" }] };
 }
 
-type SendResponse = { ok: true; faxId: string; to: string; submittedAt: string } | { ok: false; error: string; code?: string };
+type SendResponse = { ok: true; faxId: string; statusToken: string; to: string; submittedAt: string } | { ok: false; error: string; code?: string };
 type StatusResponse = { ok: true; checkedAt: string; status: SrfaxStatus } | { ok: false; error: string; code?: string };
 
 export function applySend(l: LiveFax, r: SendResponse, now = new Date()): LiveFax {
   const at = now.toISOString();
   if (!r.ok) return { ...l, phase: "error", error: r.error, events: [...l.events, { at, label: "Not submitted", detail: r.error }] };
-  return { ...l, phase: "submitted", faxId: r.faxId, submittedAt: r.submittedAt, events: [...l.events, { at: r.submittedAt, label: "Submitted to SRFax", detail: `FaxDetailsID ${r.faxId}` }] };
+  return { ...l, phase: "submitted", faxId: r.faxId, statusToken: r.statusToken, submittedAt: r.submittedAt, events: [...l.events, { at: r.submittedAt, label: "Submitted to SRFax", detail: `FaxDetailsID ${r.faxId}` }] };
 }
 
 export function applyStatus(l: LiveFax, r: StatusResponse, now = new Date()): LiveFax {
@@ -83,10 +83,11 @@ export function operationalEvidence(l: LiveFax): { claim: string; notProven: str
 }
 
 async function post<T>(body: unknown): Promise<T> {
-  const res = await fetch("/api/npi-fax", { method: "POST", headers: { "Content-Type": "application/json", "X-Demo-Key": getDemoKey() ?? "" }, body: JSON.stringify(body) });
+  const res = await fetch("/api/npi-fax", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   try { return (await res.json()) as T; } catch { return { ok: false, error: `Fax service error (${res.status})` } as T; }
 }
 
+// ok:false means the fax service couldn't be reached — distinct from "reachable but not configured".
 export const liveFaxConfig = () => post<{ ok: boolean; configured: boolean; destination: string }>({ action: "config" }).catch(() => ({ ok: false, configured: false, destination: CONTROLLED.fax }));
 
 export function sendLiveFax(d: Destination, scenarioId: string, reference: string): Promise<SendResponse> {
@@ -94,4 +95,4 @@ export function sendLiveFax(d: Destination, scenarioId: string, reference: strin
   return post<SendResponse>({ action: "send", destinationId: CONTROLLED.id, scenarioId, reference }).catch(() => ({ ok: false as const, error: "Couldn't reach the fax service — the fax may or may not have been queued. Check the SRFax portal before retrying." }));
 }
 
-export const liveFaxStatus = (faxId: string) => post<StatusResponse>({ action: "status", faxId }).catch(() => ({ ok: false as const, error: "Couldn't reach the fax service for status." }));
+export const liveFaxStatus = (faxId: string, statusToken: string) => post<StatusResponse>({ action: "status", faxId, statusToken }).catch(() => ({ ok: false as const, error: "Couldn't reach the fax service for status." }));

@@ -4,6 +4,13 @@ const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL     as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 function assertAnonKey(key: string): void {
+  // New-style Supabase keys: only sb_publishable_ is meant for browsers.
+  if (key.startsWith("sb_secret_")) {
+    throw new Error(
+      "VITE_SUPABASE_ANON_KEY is set to a secret key (sb_secret_…). " +
+      "Use the publishable key from Supabase → Settings → API."
+    );
+  }
   try {
     const payload = JSON.parse(atob(key.split(".")[1] ?? ""));
     if (payload.role === "service_role") {

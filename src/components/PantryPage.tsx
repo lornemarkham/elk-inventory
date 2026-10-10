@@ -73,7 +73,7 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
         <h2 style={{ margin: "0 0 8px", fontSize: "20px" }}>Pantry isn't switched on yet</h2>
         <p style={{ margin: 0, color: C.textMid, lineHeight: 1.6 }}>
           The pantry needs a one-time database setup before it can save anything.
-          Nothing has been changed. (For Lorne: run <code>supabase-pantry.sql</code> in the Supabase SQL Editor.)
+          Nothing has been changed. (For Lorne: run <code>supabase-family-access.sql</code>, add the family, then run <code>supabase-pantry.sql</code> — see docs/family-access.md.)
         </p>
       </Card>
     );

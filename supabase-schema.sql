@@ -70,21 +70,10 @@ CREATE INDEX IF NOT EXISTS inventory_items_fts
   ON public.inventory_items
   USING GIN (to_tsvector('english', name || ' ' || COALESCE(notes, '') || ' ' || COALESCE(category, '')));
 
--- RLS: all authenticated users can read + write
--- (For friends & family launch — everyone sees the shared inventory)
+-- RLS on, no policies here = nobody gets in. Access is granted ONLY to
+-- family members, by supabase-family-access.sql (run it next). This project
+-- is shared with another app, so "any signed-in user" is NOT a safe rule.
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can view items"
-  ON public.inventory_items FOR SELECT TO authenticated USING (true);
-
-CREATE POLICY "Authenticated users can insert items"
-  ON public.inventory_items FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated users can update items"
-  ON public.inventory_items FOR UPDATE TO authenticated USING (true);
-
-CREATE POLICY "Authenticated users can delete items"
-  ON public.inventory_items FOR DELETE TO authenticated USING (true);
 
 -- ── Purchase drafts (Purchase Intake V1 — see docs/purchase-intake-v1-spec.md) ─
 -- Raw pasted-text captures land here first. Nothing here is real inventory
@@ -120,23 +109,8 @@ CREATE TABLE IF NOT EXISTS public.purchase_drafts (
   created_by        UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
+-- Member-only policies: see supabase-family-access.sql.
 ALTER TABLE public.purchase_drafts ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Authenticated users can view drafts" ON public.purchase_drafts;
-CREATE POLICY "Authenticated users can view drafts"
-  ON public.purchase_drafts FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated users can insert drafts" ON public.purchase_drafts;
-CREATE POLICY "Authenticated users can insert drafts"
-  ON public.purchase_drafts FOR INSERT TO authenticated WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Authenticated users can update drafts" ON public.purchase_drafts;
-CREATE POLICY "Authenticated users can update drafts"
-  ON public.purchase_drafts FOR UPDATE TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated users can delete drafts" ON public.purchase_drafts;
-CREATE POLICY "Authenticated users can delete drafts"
-  ON public.purchase_drafts FOR DELETE TO authenticated USING (true);
 
 -- Provenance: which draft (if any) an inventory item was approved from.
 -- Soft reference only — deleting a draft never deletes the item it produced.
@@ -152,9 +126,13 @@ ALTER TABLE public.purchase_drafts
   ADD COLUMN IF NOT EXISTS suggested_category TEXT;
 
 -- ── Done ──────────────────────────────────────────────────────────────────────
--- After running this schema:
---   1. Copy your Supabase project URL + anon key into .env.local
---   2. npm run dev — the app will auto-seed items into the DB on first load
+-- After running this schema (new project):
+--   1. Run supabase-family-access.sql, then add yourself (instructions at
+--      the bottom of that file), then run supabase-pantry.sql
+--   2. Copy your Supabase project URL + anon key into .env.local
+--   3. npm run dev — the app will auto-seed items into the DB on first load
 --
--- This file is safe to re-run in full on an existing project — every
--- statement is idempotent (IF NOT EXISTS / DROP POLICY IF EXISTS first).
+-- On the existing production project this file does NOT need re-running.
+-- (The profiles policies above have no DROP IF EXISTS, so a re-run stops at
+-- the first one; they are left as-is because public.profiles may also be
+-- used by the other app in this project.)

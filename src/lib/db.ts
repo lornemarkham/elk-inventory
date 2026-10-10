@@ -70,7 +70,9 @@ function rowToItem(row: Row): InventoryItem {
 
 // ── CRUD ───────────────────────────────────────────────────────────────────────
 
-export async function fetchItems(): Promise<InventoryItem[]> {
+// null = the read failed (network, permissions…). Callers must not treat that
+// as "empty" — seeding on top of a failed read would overwrite real items.
+export async function fetchItems(): Promise<InventoryItem[] | null> {
   const { data, error } = await supabase
     .from("inventory_items")
     .select("*")
@@ -78,7 +80,7 @@ export async function fetchItems(): Promise<InventoryItem[]> {
 
   if (error) {
     console.error("[ELK] fetchItems error:", error.message);
-    return [];
+    return null;
   }
   return (data as Row[]).map(rowToItem);
 }
@@ -127,20 +129,12 @@ export async function deleteItem(id: string): Promise<WriteResult> {
   return { ok: true };
 }
 
-export async function upsertItems(items: InventoryItem[]): Promise<void> {
+// Seeding only: adds rows that don't exist yet and never overwrites one that does.
+export async function insertMissingItems(items: InventoryItem[]): Promise<void> {
   const rows = items.map(itemToRow);
   const { error } = await supabase
     .from("inventory_items")
-    .upsert(rows, { onConflict: "id" });
+    .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
 
-  if (error) console.error("[ELK] upsertItems error:", error.message);
-}
-
-export async function deleteAllItems(): Promise<void> {
-  const { error } = await supabase
-    .from("inventory_items")
-    .delete()
-    .neq("id", "");   // delete all rows
-
-  if (error) console.error("[ELK] deleteAllItems error:", error.message);
+  if (error) console.error("[ELK] insertMissingItems error:", error.message);
 }

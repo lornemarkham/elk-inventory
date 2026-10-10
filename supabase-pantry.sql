@@ -1,6 +1,11 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- ELK Inventory — Pantry stock (lots + movement ledger) — v1
--- Run AFTER supabase-schema.sql: Supabase Dashboard → SQL Editor → paste → Run
+-- Run AFTER supabase-schema.sql AND supabase-family-access.sql:
+-- Supabase Dashboard → SQL Editor → paste → Run
+--
+-- Who can use it: ONLY accounts in public.elk_family_members (see
+-- supabase-family-access.sql). Every read policy and every pantry_* function
+-- checks that; being signed in is not enough.
 --
 -- Purely additive: two new tables, one tiny feedback table, the pantry_*
 -- functions, and one guard trigger on inventory_items (only affects items the
@@ -23,6 +28,25 @@
 -- phones using the same product at once are serialized — never last-write-wins.
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- ── Preconditions ────────────────────────────────────────────────────────────
+-- Stop (changing nothing) unless the family-access migration ran first, or if
+-- a table with one of our names exists but belongs to something else (this
+-- project is shared with another app).
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  IF to_regprocedure('public.elk_is_family_member()') IS NULL THEN
+    RAISE EXCEPTION 'Run supabase-family-access.sql first — nothing changed.';
+  END IF;
+  FOREACH t IN ARRAY ARRAY['stock_lots', 'stock_movements', 'inventory_feedback'] LOOP
+    IF to_regclass('public.' || t) IS NOT NULL
+       AND COALESCE(obj_description(to_regclass('public.' || t), 'pg_class'), '') NOT LIKE 'elk-inventory:%' THEN
+      RAISE EXCEPTION 'public.% exists but was not created by ELK Inventory — stopping, nothing changed.', t;
+    END IF;
+  END LOOP;
+END $$;
+
 -- ── Lots ─────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.stock_lots (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -41,6 +65,7 @@ CREATE TABLE IF NOT EXISTS public.stock_lots (
 );
 
 CREATE INDEX IF NOT EXISTS stock_lots_item_idx ON public.stock_lots (item_id);
+COMMENT ON TABLE public.stock_lots IS 'elk-inventory: pantry batches';
 
 -- ── Movements (append-only) ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.stock_movements (
@@ -66,22 +91,32 @@ CREATE TABLE IF NOT EXISTS public.stock_movements (
 
 CREATE INDEX IF NOT EXISTS stock_movements_item_idx  ON public.stock_movements (item_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS stock_movements_batch_idx ON public.stock_movements (batch_id);
+COMMENT ON TABLE public.stock_movements IS 'elk-inventory: pantry movement history (append-only)';
 
--- ── RLS: everyone signed in can read (shared household); nobody writes directly
+-- ── RLS: family members can read (shared household); nobody writes directly
 ALTER TABLE public.stock_lots      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
 
+-- (Earlier draft names — never reached production, removed if present.)
 DROP POLICY IF EXISTS "Authenticated users can view lots" ON public.stock_lots;
-CREATE POLICY "Authenticated users can view lots"
-  ON public.stock_lots FOR SELECT TO authenticated USING (true);
-
 DROP POLICY IF EXISTS "Authenticated users can view movements" ON public.stock_movements;
-CREATE POLICY "Authenticated users can view movements"
-  ON public.stock_movements FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Family members can view lots" ON public.stock_lots;
+CREATE POLICY "Family members can view lots"
+  ON public.stock_lots FOR SELECT TO authenticated USING ((SELECT public.elk_is_family_member()));
+
+DROP POLICY IF EXISTS "Family members can view movements" ON public.stock_movements;
+CREATE POLICY "Family members can view movements"
+  ON public.stock_movements FOR SELECT TO authenticated USING ((SELECT public.elk_is_family_member()));
+
+-- No write privilege at all for the API roles — writes go through pantry_*.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.stock_lots, public.stock_movements FROM PUBLIC, anon, authenticated;
 
 -- ── Tester feedback ("this confused me" / "this is wrong") ───────────────────
--- Write-only from the app. Read it in Supabase → Table Editor → feedback.
-CREATE TABLE IF NOT EXISTS public.feedback (
+-- Write-only from the app (family members). Read it in Supabase → Table
+-- Editor → inventory_feedback. Prefixed so it can't collide with the other
+-- app's tables.
+CREATE TABLE IF NOT EXISTS public.inventory_feedback (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   message     TEXT NOT NULL CHECK (length(message) BETWEEN 1 AND 4000),
   page        TEXT,
@@ -90,11 +125,16 @@ CREATE TABLE IF NOT EXISTS public.feedback (
   created_by  UUID DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
-ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.inventory_feedback IS 'elk-inventory: tester feedback';
 
-DROP POLICY IF EXISTS "Authenticated users can send feedback" ON public.feedback;
-CREATE POLICY "Authenticated users can send feedback"
-  ON public.feedback FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
+ALTER TABLE public.inventory_feedback ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Family members can send feedback" ON public.inventory_feedback;
+CREATE POLICY "Family members can send feedback"
+  ON public.inventory_feedback FOR INSERT TO authenticated
+  WITH CHECK ((SELECT public.elk_is_family_member()) AND created_by = (SELECT auth.uid()));
+
+REVOKE UPDATE, DELETE, TRUNCATE ON public.inventory_feedback FROM PUBLIC, anon, authenticated;
 
 -- ── Guard: other screens can't overwrite a pantry-tracked count ──────────────
 -- The rest of the app writes whole item rows from whatever copy the phone has
@@ -105,7 +145,7 @@ CREATE POLICY "Authenticated users can send feedback"
 -- (name, notes, location, …) still updates normally.
 CREATE OR REPLACE FUNCTION public.pantry_guard_item_()
 RETURNS TRIGGER
-LANGUAGE plpgsql SET search_path = public
+LANGUAGE plpgsql SET search_path = ''
 AS $$
 BEGIN
   IF COALESCE((OLD.attributes->>'pantryTracked')::boolean, false)
@@ -129,6 +169,23 @@ CREATE TRIGGER pantry_guard_item
 -- Functions
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Every public pantry_* function starts with this. They run as SECURITY
+-- DEFINER (so RLS doesn't apply inside them), which is exactly why the
+-- membership check has to be here and not only in the table policies.
+CREATE OR REPLACE FUNCTION public.pantry_require_member_()
+RETURNS VOID
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Please sign in again.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.elk_is_family_member() THEN
+    RAISE EXCEPTION 'This account isn''t on the family list yet.' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+
 -- Oldest-first ("first in, first out"): lots already on hand before tracking
 -- (purchased_on NULL) are the oldest; then by purchase date; then by when
 -- they were recorded. Mirrored by fifoOrder() in src/lib/pantryModel.ts.
@@ -142,7 +199,7 @@ CREATE TRIGGER pantry_guard_item
 -- Returns the locked row's quantity after reconciling.
 CREATE OR REPLACE FUNCTION public.pantry_reconcile_(p_item_id TEXT)
 RETURNS INTEGER
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE
   v_item      public.inventory_items%ROWTYPE;
@@ -222,14 +279,14 @@ CREATE OR REPLACE FUNCTION public.pantry_receive(
   p_request_id   UUID    DEFAULT NULL
 )
 RETURNS UUID   -- the batch id (pass to pantry_undo)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE
   v_qty    INTEGER;
   v_lot_id UUID;
   v_batch  UUID := COALESCE(p_request_id, gen_random_uuid());
 BEGIN
-  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Please sign in again.'; END IF;
+  PERFORM public.pantry_require_member_();
   IF p_quantity IS NULL OR p_quantity < 1 THEN RAISE EXCEPTION 'How many? It has to be at least 1.'; END IF;
   IF p_quantity > 10000 THEN RAISE EXCEPTION 'That is a lot — please check the number.'; END IF;
 
@@ -278,7 +335,7 @@ CREATE OR REPLACE FUNCTION public.pantry_use(
   p_request_id UUID DEFAULT NULL   -- retry-safe, as in pantry_receive
 )
 RETURNS UUID   -- the batch id (pass to pantry_undo)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE
   v_qty       INTEGER;
@@ -288,7 +345,7 @@ DECLARE
   v_lot       RECORD;
   v_batch     UUID := COALESCE(p_request_id, gen_random_uuid());
 BEGIN
-  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Please sign in again.'; END IF;
+  PERFORM public.pantry_require_member_();
   IF p_quantity IS NULL OR p_quantity < 1 THEN RAISE EXCEPTION 'How many? It has to be at least 1.'; END IF;
 
   v_qty := public.pantry_reconcile_(p_item_id);
@@ -334,7 +391,7 @@ $$;
 --                only while none of that batch has been used yet
 CREATE OR REPLACE FUNCTION public.pantry_undo(p_batch_id UUID)
 RETURNS UUID
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE
   v_item_id TEXT;
@@ -344,7 +401,7 @@ DECLARE
   v_mv      RECORD;
   v_batch   UUID := gen_random_uuid();
 BEGIN
-  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Please sign in again.'; END IF;
+  PERFORM public.pantry_require_member_();
 
   SELECT item_id, kind INTO v_item_id, v_kind FROM public.stock_movements
    WHERE batch_id = p_batch_id AND kind IN ('used', 'received') LIMIT 1;
@@ -387,10 +444,10 @@ $$;
 -- nothing else on the item is touched.
 CREATE OR REPLACE FUNCTION public.pantry_set_low_stock(p_item_id TEXT, p_level INTEGER)
 RETURNS VOID
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 BEGIN
-  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Please sign in again.'; END IF;
+  PERFORM public.pantry_require_member_();
   IF p_level IS NOT NULL AND p_level < 0 THEN RAISE EXCEPTION 'The warning level can''t be negative.'; END IF;
   PERFORM set_config('elk.pantry', '1', true);
 
@@ -410,9 +467,11 @@ $$;
 DROP FUNCTION IF EXISTS public.pantry_receive(TEXT, INTEGER, TEXT, DATE, DATE, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.pantry_use(TEXT, INTEGER, UUID);
 
--- Only signed-in users may call these; the internal helpers are never exposed.
+-- Only signed-in users may call these (and each one then requires family
+-- membership); the internal helpers are never exposed.
 REVOKE ALL ON FUNCTION public.pantry_guard_item_() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.pantry_reconcile_(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.pantry_require_member_() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.pantry_receive(TEXT, INTEGER, TEXT, DATE, DATE, TEXT, TEXT, UUID) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.pantry_use(TEXT, INTEGER, UUID, UUID) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.pantry_undo(UUID) FROM PUBLIC, anon;

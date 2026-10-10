@@ -63,6 +63,7 @@ export default function App() {
 
   const [items,       setItems]       = useState<InventoryItem[]>([]);
   const [dbLoading,   setDbLoading]   = useState(true);
+  const [loadError,   setLoadError]   = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
 
@@ -75,17 +76,20 @@ export default function App() {
     async function loadItems() {
       setDbLoading(true);
       const fetched = await db.fetchItems();
-      if (fetched.length === 0) {
+      if (fetched === null) {
+        // Couldn't read — show nothing rather than seed over real data.
+        setLoadError(true);
+      } else if (fetched.length === 0) {
         // First-time setup: seed the database with initial inventory
         console.info("[ELK] Empty database — seeding with initial inventory…");
-        await db.upsertItems(seedInventory);
+        await db.insertMissingItems(seedInventory);
         setItems(seedInventory);
       } else {
         // Auto-merge: inject any new seed items whose IDs are not yet in the DB
         const existingIds = new Set(fetched.map(i => i.id));
         const missing = seedInventory.filter(i => !existingIds.has(i.id));
         if (missing.length > 0) {
-          await db.upsertItems(missing);
+          await db.insertMissingItems(missing);
           setItems([...fetched, ...missing]);
         } else {
           setItems(fetched);
@@ -152,7 +156,7 @@ export default function App() {
   // Pantry changed counts in the database — re-read them (no seeding here).
   async function refreshItems() {
     const fetched = await db.fetchItems();
-    if (fetched.length > 0) setItems(fetched);
+    if (fetched && fetched.length > 0) setItems(fetched);
   }
 
   function handleDelete(id: string) {
@@ -166,18 +170,6 @@ export default function App() {
         : `Couldn't delete “${removed.name}”: ${r.error}`);
     });
     closeItemModal();
-  }
-
-  async function handleReset() {
-    if (window.confirm(
-      `Reset to seed data?\n\nThis will delete all ${items.length} items and restore the original seed items. Export a backup first if needed.`
-    )) {
-      setItems(seedInventory);
-      setEditingItem(null);
-      if (location.pathname.startsWith("/items/")) closeItemModal();
-      await db.deleteAllItems();
-      await db.upsertItems(seedInventory);
-    }
   }
 
   async function handleSignOut() {
@@ -388,17 +380,6 @@ export default function App() {
             }}>
               Export
             </button>
-            <button onClick={handleReset} title="Reset to seed data" style={{
-              background: "transparent",
-              border: `1px solid ${C.red}44`,
-              color: C.textDim,
-              borderRadius: "6px",
-              padding: "7px 10px",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}>
-              Reset
-            </button>
             <button onClick={handleSignOut} title="Sign out" style={{
               background: "transparent",
               border: `1px solid ${C.border}`,
@@ -418,6 +399,10 @@ export default function App() {
         {dbLoading ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textDim, fontSize: "13px" }}>
             Loading inventory…
+          </div>
+        ) : loadError ? (
+          <div style={{ textAlign: "center", padding: "80px 0", color: C.textMid, fontSize: "14px" }}>
+            Couldn't load the inventory. Nothing was changed — reload the page to try again.
           </div>
         ) : (
           <Routes location={modalState?.backgroundLocation ?? location}>

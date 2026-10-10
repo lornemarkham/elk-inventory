@@ -1,11 +1,13 @@
 // Pantry SQL (supabase-pantry.sql) against a real Postgres (PGlite, in-process).
-// Supabase's auth schema and roles are stubbed; supabase-schema.sql + the
-// pantry migration are loaded exactly as written, then the human scenario is
-// run through the same pantry_* functions the app calls.
+// Supabase's auth schema and roles are stubbed (tests/supabase-harness.ts);
+// supabase-schema.sql, the family-access migration and the pantry migration
+// are loaded exactly as written, then the human scenario is run through the
+// same pantry_* functions the app calls. Alice and Bob are family members;
+// who is NOT allowed in is covered by tests/family-access.test.ts.
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
+import { supabaseLikeDb, runFile, asUser, addMember } from "./supabase-harness";
 
 const ALICE = "00000000-0000-0000-0000-00000000000a";
 const BOB   = "00000000-0000-0000-0000-00000000000b";
@@ -13,15 +15,8 @@ const BOB   = "00000000-0000-0000-0000-00000000000b";
 let db: PGlite;
 
 // Run as a signed-in user: role `authenticated` (RLS applies) + auth.uid().
-async function as<T = Record<string, unknown>>(uid: string | null, sql: string, params: unknown[] = []) {
-  await db.exec(`RESET ROLE; SELECT set_config('request.jwt.claim.sub', '${uid ?? ""}', false);`);
-  await db.exec(uid ? "SET ROLE authenticated" : "SET ROLE anon");
-  try {
-    return (await db.query<T>(sql, params)).rows;
-  } finally {
-    await db.exec("RESET ROLE");
-  }
-}
+const as = <T = Record<string, unknown>>(uid: string | null, sql: string, params: unknown[] = []) =>
+  asUser(db)<T>(uid, sql, params);
 const asAlice = <T = Record<string, unknown>>(sql: string, p: unknown[] = []) => as<T>(ALICE, sql, p);
 
 async function admin<T = Record<string, unknown>>(sql: string, p: unknown[] = []) {
@@ -38,27 +33,18 @@ const moves = (id: string) =>
     "SELECT kind, quantity_delta, created_by::text FROM stock_movements WHERE item_id = $1 ORDER BY created_at, kind", [id]);
 
 before(async () => {
-  db = new PGlite();
+  db = await supabaseLikeDb();
+  await runFile(db, "supabase-schema.sql");
+  await runFile(db, "supabase-family-access.sql");
+  await runFile(db, "supabase-pantry.sql");
   await db.exec(`
-    CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;
-    CREATE SCHEMA auth;
-    CREATE TABLE auth.users (id UUID PRIMARY KEY, email TEXT);
-    CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS
-      $$ SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-    GRANT USAGE ON SCHEMA auth TO anon, authenticated;
-    GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated;
-  `);
-  await db.exec(readFileSync("supabase-schema.sql", "utf8"));
-  await db.exec(readFileSync("supabase-pantry.sql", "utf8"));
-  // Supabase's default grants: API roles get table privileges; RLS decides.
-  await db.exec(`
-    GRANT USAGE ON SCHEMA public TO anon, authenticated;
-    GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
     INSERT INTO auth.users (id, email) VALUES ('${ALICE}', 'alice@example.com'), ('${BOB}', 'bob@example.com');
     INSERT INTO inventory_items (id, name, domain, current_zone, recommended_zone, location_detail, quantity, attributes)
     VALUES ('pantry-tom-01', 'Diced Tomatoes', 'food-storage', 'storage-room-pantry', 'storage-room-pantry',
             'White Pantry Shelf', 10, '{"unit":"cans","foodCategory":"vegetables"}');
   `);
+  await addMember(db, ALICE, "Alice");
+  await addMember(db, BOB, "Bob");
 });
 
 test("existing count is kept as an 'already on hand' lot, then 12 new cans are added", async () => {
@@ -194,9 +180,9 @@ test("low-stock level merges into attributes and can be cleared", async () => {
 
 test("lots and history can't be written directly, deleted, or touched when signed out", async () => {
   const l = await lots("pantry-tom-01");
-  // RLS: no write policies → updates/deletes silently match zero rows, inserts fail.
-  await asAlice("UPDATE stock_lots SET quantity_remaining = 99 WHERE id = $1", [l[0].id]);
-  await asAlice("DELETE FROM stock_movements");
+  // No write privilege for API roles at all (and no write policies either).
+  await assert.rejects(asAlice("UPDATE stock_lots SET quantity_remaining = 99 WHERE id = $1", [l[0].id]), /permission denied/);
+  await assert.rejects(asAlice("DELETE FROM stock_movements"), /permission denied/);
   assert.deepEqual(await lots("pantry-tom-01"), l);
   assert.ok((await moves("pantry-tom-01")).length > 0);
   await assert.rejects(asAlice(
@@ -213,16 +199,17 @@ test("a product with pantry history can't be deleted", async () => {
   assert.equal(await qty("pantry-tom-01"), before);
 });
 
-test("feedback: signed-in users can send, nobody can read it back through the API", async () => {
-  await asAlice("INSERT INTO feedback (message, page) VALUES ('The add button was hard to find', '/pantry')");
-  assert.equal((await asAlice("SELECT * FROM feedback")).length, 0);
-  const [row] = await admin<{ created_by: string }>("SELECT created_by::text FROM feedback");
+test("feedback: family members can send, nobody can read it back through the API", async () => {
+  await asAlice("INSERT INTO inventory_feedback (message, page) VALUES ('The add button was hard to find', '/pantry')");
+  assert.equal((await asAlice("SELECT * FROM inventory_feedback")).length, 0);
+  const [row] = await admin<{ created_by: string }>("SELECT created_by::text FROM inventory_feedback");
   assert.equal(row.created_by, ALICE);
 });
 
-test("the migration is safe to run twice", async () => {
+test("the migrations are safe to run twice", async () => {
   const before = await qty("pantry-tom-01");
-  await db.exec(readFileSync("supabase-pantry.sql", "utf8"));
+  await runFile(db, "supabase-family-access.sql");
+  await runFile(db, "supabase-pantry.sql");
   assert.equal(await qty("pantry-tom-01"), before);
   const fns = await admin<{ n: number }>("SELECT count(*)::int AS n FROM pg_proc WHERE proname IN ('pantry_receive', 'pantry_use')");
   assert.equal(fns[0].n, 2);   // one version of each

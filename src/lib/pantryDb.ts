@@ -54,7 +54,8 @@ export async function loadPantry(): Promise<PantryLoad> {
   const [lots, moves, people] = await Promise.all([
     supabase.from("stock_lots").select("*"),
     supabase.from("stock_movements").select("*").order("created_at", { ascending: false }).limit(500),
-    supabase.from("profiles").select("id, name, email"),
+    // Names for the history list. Only family members can read this table.
+    supabase.from("elk_family_members").select("user_id, display_name"),
   ]);
   for (const r of [lots, moves]) {
     if (r.error) {
@@ -65,8 +66,8 @@ export async function loadPantry(): Promise<PantryLoad> {
   }
   const names: Record<string, string> = {};
   for (const p of (people.data ?? []) as Row[]) {
-    const name = (p.name as string | null)?.trim() || ((p.email as string | null) ?? "").split("@")[0];
-    if (name) names[p.id as string] = name;
+    const name = (p.display_name as string | null)?.trim();
+    if (name) names[p.user_id as string] = name;
   }
   return {
     status: "ready",
@@ -120,7 +121,7 @@ export function setLowStock(itemId: string, level: number | null): Promise<Pantr
 }
 
 export async function sendFeedback(message: string, page: string): Promise<PantryResult> {
-  const { error } = await supabase.from("feedback").insert({
+  const { error } = await supabase.from("inventory_feedback").insert({
     message,
     page,
     user_agent: navigator.userAgent.slice(0, 300),

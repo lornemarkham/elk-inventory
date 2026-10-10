@@ -5,6 +5,8 @@
 
 import { supabase } from "./supabase";
 import * as db from "./db";
+import * as pantryDb from "./pantryDb";
+import { localToday } from "./pantryModel";
 import type { InventoryItem, ZoneId, InventoryDomain, ItemClass } from "../types/inventory";
 import type { ExtractedFields, PurchaseDraft, PurchaseDraftStatus } from "../types/purchase";
 
@@ -213,7 +215,26 @@ export async function approveDraft(
       attributes: { ...(existing.attributes ?? {}), ...purchaseAttributes },
       updatedAt: new Date().toISOString(),
     };
-    const written = await db.updateItem(resultItem);
+    if (existing.attributes?.pantryTracked === true) {
+      // Pantry-tracked: the count lives in dated batches. Record this purchase
+      // as a new batch (so it isn't mistaken for the oldest stock), then save
+      // the other fields without touching the count.
+      const today = localToday();
+      const bought = draft.suggestedPurchaseDate && draft.suggestedPurchaseDate <= today
+        ? draft.suggestedPurchaseDate : today;
+      const received = await pantryDb.receive({
+        itemId: existing.id,
+        quantity: action.addQuantity,
+        location: existing.locationDetail ?? "",
+        bestBefore: null,
+        purchasedOn: bought,
+        requestId: draft.id,   // approving the same draft twice adds once
+      });
+      if (!received.ok) {
+        return { error: `Could not add to the pantry: ${received.error}` };
+      }
+    }
+    const written = await db.updateItem(resultItem, { keepQuantity: existing.attributes?.pantryTracked === true });
     if (!written.ok) {
       return { error: `Could not update the existing item: ${written.error}` };
     }

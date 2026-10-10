@@ -20,6 +20,7 @@ import Dashboard from "./components/Dashboard";
 import CommandBar from "./components/CommandBar";
 import CapturePage from "./components/CapturePage";
 import CapturedReviewQueue from "./components/CapturedReviewQueue";
+import PantryPage from "./components/PantryPage";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 //
@@ -30,6 +31,7 @@ import CapturedReviewQueue from "./components/CapturedReviewQueue";
 //   /items/:id                 Item detail — a modal *and* a real URL (see below)
 //   /zones                     Zones
 //   /collections               Kits & Collections
+//   /pantry                    Pantry — food stock by batch (phone-first)
 //
 // /items/:id uses React Router's "background location" pattern: when you
 // click an item from elsewhere in the app, we navigate to /items/:id but
@@ -141,13 +143,28 @@ export default function App() {
   function handleUpdate(updated: InventoryItem) {
     const patched = { ...updated, updatedAt: new Date().toISOString() };
     setItems((prev) => prev.map((i) => i.id === updated.id ? patched : i));  // optimistic
-    db.updateItem(patched);                          // sync to DB
+    // Pantry-tracked counts are owned by the Pantry screen's batch history —
+    // the edit form must not write a (possibly stale) count over them.
+    db.updateItem(patched, { keepQuantity: patched.attributes?.pantryTracked === true });
     setEditingItem(null);
   }
 
+  // Pantry changed counts in the database — re-read them (no seeding here).
+  async function refreshItems() {
+    const fetched = await db.fetchItems();
+    if (fetched.length > 0) setItems(fetched);
+  }
+
   function handleDelete(id: string) {
+    const removed = items.find((i) => i.id === id);
     setItems((prev) => prev.filter((i) => i.id !== id));  // optimistic
-    db.deleteItem(id);                               // sync to DB
+    db.deleteItem(id).then((r) => {                  // sync to DB
+      if (r.ok || !removed) return;
+      setItems((prev) => (prev.some((i) => i.id === id) ? prev : [...prev, removed]));  // put it back
+      window.alert(/foreign key/i.test(r.error)
+        ? `“${removed.name}” has pantry history, so it can't be deleted. Use it up on the Pantry screen instead.`
+        : `Couldn't delete “${removed.name}”: ${r.error}`);
+    });
     closeItemModal();
   }
 
@@ -338,6 +355,7 @@ export default function App() {
               {[
                 { path: "/", label: "Dashboard", end: true },
                 { path: "/inventory", label: "Inventory", end: false },
+                { path: "/pantry", label: "Pantry", end: false },
                 { path: "/zones", label: "Zones", end: false },
                 { path: "/collections", label: "Kits & Collections", end: false },
               ].map((v) => (
@@ -409,6 +427,7 @@ export default function App() {
             <Route path="/items/:id" element={<InventoryPage items={items} onAdd={handleAdd} onItemClick={handleItemClick} />} />
             <Route path="/zones" element={<ZonePage items={items} onItemClick={handleItemClick} />} />
             <Route path="/collections" element={<CollectionsPage items={items} />} />
+            <Route path="/pantry" element={<PantryPage items={items} onItemsChanged={refreshItems} />} />
             <Route
               path="/capture"
               element={

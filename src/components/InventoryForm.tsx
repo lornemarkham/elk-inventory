@@ -384,8 +384,9 @@ function FormBody({ form, set, toggleTag, addTagsFromInput, onSubmit, onCancel, 
             {LIFECYCLE_STATES.map(s => <option key={s}>{s}</option>)}
           </select>
         </Field>
-        <Field label="Qty">
+        <Field label={form.attributes.pantryTracked === true ? "Qty (change it on the Pantry screen)" : "Qty"}>
           <input style={inputStyle} type="number" min={1} value={form.quantity}
+            disabled={form.attributes.pantryTracked === true}
             onChange={e => set("quantity", parseInt(e.target.value) || 1)} />
         </Field>
       </div>

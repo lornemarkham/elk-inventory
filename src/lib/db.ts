@@ -97,10 +97,14 @@ export async function createItem(item: InventoryItem): Promise<WriteResult> {
   return { ok: true };
 }
 
-export async function updateItem(item: InventoryItem): Promise<WriteResult> {
+// keepQuantity: leave the stored count alone (used for pantry-tracked items,
+// whose count is maintained by the pantry_* SQL functions).
+export async function updateItem(item: InventoryItem, opts: { keepQuantity?: boolean } = {}): Promise<WriteResult> {
+  const row = itemToRow(item);
+  if (opts.keepQuantity) delete row.quantity;
   const { error } = await supabase
     .from("inventory_items")
-    .update(itemToRow(item))
+    .update(row)
     .eq("id", item.id);
 
   if (error) {
@@ -110,13 +114,17 @@ export async function updateItem(item: InventoryItem): Promise<WriteResult> {
   return { ok: true };
 }
 
-export async function deleteItem(id: string): Promise<void> {
+export async function deleteItem(id: string): Promise<WriteResult> {
   const { error } = await supabase
     .from("inventory_items")
     .delete()
     .eq("id", id);
 
-  if (error) console.error("[ELK] deleteItem error:", error.message);
+  if (error) {
+    console.error("[ELK] deleteItem error:", error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 export async function upsertItems(items: InventoryItem[]): Promise<void> {

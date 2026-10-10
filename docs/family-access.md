@@ -94,10 +94,12 @@ Read feedback in Table Editor → `inventory_feedback`.
 
 ## Not changed here (owner decisions)
 
-- **`/api/extract`** (AI photo/text extraction on Capture) doesn't check who's
-  calling. Anyone who finds the URL can spend the OpenAI key. It never touches
-  the database, so inventory data is safe, but it isn't family-only. This is a
-  separate fix.
+- **`/api/extract`** (AI photo/text extraction on Capture) is family-only. The
+  server sends the caller's sign-in token to `elk_is_family_member()` and only
+  calls OpenAI if the answer is `true` (`api/_extract-auth.ts`). Until step 2
+  runs, that function doesn't exist, so AI extraction is refused for everyone.
+  Text Capture falls back to the built-in parser, and photo Capture shows
+  "couldn't read". It comes back by itself once you're on the list.
 - **Password sign-up.** Turning off email+password sign-up, or requiring
   email confirmation, would close the enrolment trick above at the source.
   Check the other app first.

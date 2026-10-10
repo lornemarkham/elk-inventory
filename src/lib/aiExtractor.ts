@@ -7,6 +7,8 @@
 // deterministic parser (extractInventoryDrafts in purchaseParser.ts); photo
 // failures have no deterministic fallback (see extractInventoryDraftsFromImage).
 
+import { supabase } from "./supabase";
+
 const TIMEOUT_MS = 25_000; // vision calls run slower than text-only
 
 export interface RawAiProduct {
@@ -42,9 +44,14 @@ export async function extractWithAI(input: AiExtractionInput): Promise<AiExtract
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
+    // The server only runs extraction for family members; it checks this token.
+    const { data: auth } = await supabase.auth.getSession();
+    const token = auth.session?.access_token;
+    if (!token) return { ok: false, reason: "not signed in" };
+
     const res = await fetch("/api/extract", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(input),
       signal: controller.signal,
     });

@@ -14,6 +14,8 @@
 // Fallback on failure — text only, images have no deterministic fallback:
 //   src/lib/purchaseParser.ts's parseCaptureText / extractInventoryDrafts
 
+import { checkFamilyMember } from "./_extract-auth";
+
 export const config = { runtime: "edge" };
 
 const OPENAI_MODEL = "gpt-4o-mini";
@@ -84,6 +86,12 @@ export default async function handler(request: Request): Promise<Response> {
 
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  // Family members only — checked before the body is read or the key touched.
+  const gate = await checkFamilyMember(request);
+  if (!gate.ok) {
+    return jsonResponse({ error: gate.error }, gate.status);
   }
 
   const apiKey = process.env.OPENAI_API_KEY;

@@ -15,6 +15,7 @@
 //   src/lib/purchaseParser.ts's parseCaptureText / extractInventoryDrafts
 
 import { checkFamilyMember } from "./_extract-auth";
+import { buildRecipeOpenAIBody, heartbeatJson, isRecipeRequest, parseRecipeRequest, RECIPE_OPENAI_TIMEOUT_MS } from "./_extract-recipe";
 
 export const config = { runtime: "edge" };
 
@@ -109,6 +110,9 @@ export default async function handler(request: Request): Promise<Response> {
     console.error("[api/extract] Failed to parse request body:", err);
     return jsonResponse({ error: "Invalid request body" }, 400);
   }
+
+  // ELK Kitchen: `kind: "recipe"` — photos of a recipe card → the recipe as written.
+  if (isRecipeRequest(body)) return extractRecipe(body, apiKey);
 
   const text = typeof body.text === "string" ? body.text.trim() : "";
   const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : "";
@@ -231,4 +235,33 @@ export default async function handler(request: Request): Promise<Response> {
     console.log(`[api/extract] ${ts()} 8. Before returning the HTTP response`, { status: 502 });
     return jsonResponse({ error: `Extraction failed: ${message}` }, 502);
   }
+}
+
+// Validation errors are answered with a status; once the model is called the
+// answer is streamed (heartbeatJson), so its failures arrive as { error }.
+// Logs carry sizes and statuses only — never the recipe or the photos.
+async function extractRecipe(body: unknown, apiKey: string): Promise<Response> {
+  const input = parseRecipeRequest(body);
+  if (!input.ok) return jsonResponse({ error: input.error }, 400);
+  const inputMeta = `recipe text=${input.text.length}chars images=${input.images.length}`;
+  return heartbeatJson(async () => {
+    try {
+      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: buildRecipeOpenAIBody(input, OPENAI_MODEL),
+        signal: AbortSignal.timeout(RECIPE_OPENAI_TIMEOUT_MS),
+      });
+      if (!openaiRes.ok) {
+        console.error(`[api/extract] OpenAI error ${openaiRes.status} (${inputMeta})`);
+        return { error: `OpenAI request failed (${openaiRes.status})` };
+      }
+      const content = (await openaiRes.json())?.choices?.[0]?.message?.content;
+      if (typeof content !== "string") return { error: "Empty or malformed response from OpenAI" };
+      return JSON.parse(content);
+    } catch (err) {
+      console.error(`[api/extract] Recipe extraction failed (${inputMeta}):`, err instanceof Error ? err.name : "unknown");
+      throw err;
+    }
+  });
 }

@@ -2,16 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import type { InventoryItem } from "../types/inventory";
 import { C } from "../styles";
 import * as pantryDb from "../lib/pantryDb";
-import type { PantryLoad } from "../lib/pantryDb";
+import type { PantryLoad, ShoppingItem, ShoppingLoad } from "../lib/pantryDb";
 import {
-  countLabel, daysUntil, findProductByName, formatDay, isPantryItem, localToday, summarize, unitOf,
+  countLabel, daysUntil, findProductByName, formatDay, isPantryItem, localToday, summarize, unitOf, useSoon,
   type PantrySummary, type StockLot, type StockMovement,
 } from "../lib/pantryModel";
 
 // ── Pantry ─────────────────────────────────────────────────────────────────────
 // Phone-first screen for food stock: I bought something → where it went →
-// what's left → use the oldest first → running low. Every change goes through
-// the pantry_* SQL functions (see supabase-pantry.sql) and is kept as history.
+// what's left → use the oldest first → running low → shopping list. Every
+// stock change goes through the pantry_* SQL functions (see
+// supabase-pantry.sql) and is kept as history.
+
+// Recipes live in ELK Kitchen (same family sign-in, reads this pantry).
+const KITCHEN_URL = "https://elk-kitchen.vercel.app";
 
 interface Props {
   items: InventoryItem[];
@@ -19,7 +23,7 @@ interface Props {
   onItemsChanged: () => Promise<void>;
 }
 
-type Toast = { text: string; undoBatch?: string; error?: boolean } | null;
+type Toast = { text: string; undoBatch?: string; error?: boolean; action?: { label: string; run: () => void } } | null;
 
 const big: React.CSSProperties = {
   fontSize: "16px",            // ≥16px stops iOS zooming into inputs
@@ -43,13 +47,17 @@ const quietBtn: React.CSSProperties = {
 
 export default function PantryPage({ items, onItemsChanged }: Props) {
   const [load, setLoad] = useState<PantryLoad | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [shopping, setShopping] = useState<ShoppingLoad | null>(null);
+  // false = closed; string = open, with this name filled in ("" for blank).
+  const [adding, setAdding] = useState<false | string>(false);
   const [toast, setToast] = useState<Toast>(null);
   const [search, setSearch] = useState("");
   const [undoing, setUndoing] = useState(false);
 
   async function reload() {
-    setLoad(await pantryDb.loadPantry());
+    const [p, sh] = await Promise.all([pantryDb.loadPantry(), pantryDb.loadShopping()]);
+    setLoad(p);
+    setShopping(sh);
   }
   useEffect(() => { reload(); }, []);
 
@@ -93,11 +101,23 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
   const inStock = visible.filter(s => s.onHand > 0);
   const usedUp = visible.filter(s => s.onHand === 0);
   const low = summaries.filter(s => s.isLow);
+  const soon = useSoon(summaries, localToday());
+
+  function openAdd(name = "") {
+    setAdding(name);
+    setToast(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
     <div style={{ maxWidth: "640px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "14px" }}>
       <div>
-        <h2 style={{ margin: 0, fontSize: "26px", fontWeight: 800 }}>Pantry</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "10px" }}>
+          <h2 style={{ margin: 0, fontSize: "26px", fontWeight: 800 }}>Pantry</h2>
+          <a href={`${KITCHEN_URL}/ideas`} style={{ color: C.amber, fontSize: "15px", fontWeight: 700, whiteSpace: "nowrap" }}>
+            What can we cook? →
+          </a>
+        </div>
         <p style={{ margin: "4px 0 0", color: C.textMid, fontSize: "15px" }}>
           What food we have, where it is, and which to use first.
         </p>
@@ -111,6 +131,9 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
           fontSize: "15px",
         }}>
           <span style={{ flex: 1 }}>{toast.text}</span>
+          {toast.action && (
+            <button style={{ ...quietBtn, padding: "6px 12px" }} onClick={toast.action.run}>{toast.action.label}</button>
+          )}
           {toast.undoBatch && (
             <button style={{ ...quietBtn, padding: "6px 12px" }} disabled={undoing} onClick={async () => {
               setUndoing(true);
@@ -124,17 +147,35 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
         </div>
       )}
 
-      {adding ? (
+      {adding !== false ? (
         <AddForm
+          key={adding}
+          initialName={adding}
           pantryItems={pantryItems}
           lots={lots}
           onCancel={() => setAdding(false)}
           onDone={async (text, batch) => { setAdding(false); setToast({ text, undoBatch: batch }); await afterWrite(); }}
         />
       ) : (
-        <button style={{ ...primaryBtn, padding: "16px", fontSize: "18px" }} onClick={() => { setAdding(true); setToast(null); }}>
+        <button style={{ ...primaryBtn, padding: "16px", fontSize: "18px" }} onClick={() => openAdd()}>
           ＋ I bought something
         </button>
+      )}
+
+      {soon.length > 0 && (
+        <Card accent={C.red}>
+          <div style={{ fontWeight: 800, color: C.red, marginBottom: "6px" }}>Use soon</div>
+          {soon.map(({ summary: s, lot, days }) => (
+            <div key={lot.id} style={{ fontSize: "15px", padding: "2px 0" }}>
+              {s.item.name} — {countLabel(lot.quantityRemaining, s.unit)}
+              <span style={{ color: C.textMid }}> · {lot.location || "no location"} · </span>
+              <span style={{ color: days < 0 ? C.red : C.amber }}>
+                {days < 0 ? `best before passed (${formatDay(lot.bestBefore!)})`
+                  : days === 0 ? "best before today" : days === 1 ? "best before tomorrow" : `best before in ${days} days`}
+              </span>
+            </div>
+          ))}
+        </Card>
       )}
 
       {low.length > 0 && (
@@ -145,8 +186,22 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
               {s.item.name} — {countLabel(s.onHand, s.unit)} left
             </div>
           ))}
+          {shopping?.status === "ready" && (
+            <button style={{ ...quietBtn, marginTop: "8px" }} onClick={async () => {
+              const r = await pantryDb.addShopping(low.map(s => s.item.name), null, "low-stock");
+              setToast(r.ok
+                ? { text: r.value === 0 ? "They're all on the shopping list already." : `Added ${r.value} to the shopping list.` }
+                : { text: r.error, error: true });
+              if (r.ok) setShopping(await pantryDb.loadShopping());
+            }}>Add to shopping list</button>
+          )}
         </Card>
       )}
+
+      <ShoppingList load={shopping} people={load.people}
+        onChanged={async () => setShopping(await pantryDb.loadShopping())}
+        onToast={setToast}
+        onPutAway={name => openAdd(name)} />
 
       {summaries.length > 6 && (
         <input style={big} placeholder="Find something…" value={search} onChange={e => setSearch(e.target.value)} />
@@ -176,6 +231,90 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
 
       <FeedbackBox />
     </div>
+  );
+}
+
+// ── Shopping list ────────────────────────────────────────────────────────────
+
+function ShoppingList({ load, people, onChanged, onToast, onPutAway }: {
+  load: ShoppingLoad | null;
+  people: Record<string, string>;
+  onChanged: () => Promise<void>;
+  onToast: (t: Toast) => void;
+  onPutAway: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!load || load.status === "not-set-up") return null;
+  if (load.status === "error") {
+    return <Card><span style={{ color: C.textMid }}>Couldn't load the shopping list: {load.error}</span></Card>;
+  }
+  const open = load.items.filter(i => !i.doneAt);
+  const done = load.items.filter(i => i.doneAt);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    const names = name.split(",").map(n => n.trim()).filter(Boolean);
+    if (names.length === 0) return;
+    setBusy(true);
+    const r = await pantryDb.addShopping(names, null, "manual");
+    setBusy(false);
+    if (!r.ok) { onToast({ text: r.error, error: true }); return; }
+    if (r.value < names.length) onToast({ text: names.length === 1 ? "That's on the list already." : `Added ${r.value}; the rest were on the list already.` });
+    setName("");
+    await onChanged();
+  }
+
+  async function tick(i: ShoppingItem, isDone: boolean) {
+    const r = await pantryDb.setShoppingDone(i.id, isDone);
+    if (!r.ok) { onToast({ text: r.error, error: true }); return; }
+    if (isDone) onToast({ text: `Got ${i.name}.`, action: { label: "Put it away", run: () => onPutAway(i.name) } });
+    await onChanged();
+  }
+
+  async function remove(i: ShoppingItem) {
+    const r = await pantryDb.removeShopping(i.id);
+    if (!r.ok) { onToast({ text: r.error, error: true }); return; }
+    await onChanged();
+  }
+
+  const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: "10px", padding: "6px 0", borderBottom: `1px solid ${C.borderLo}` };
+  const box: React.CSSProperties = { ...quietBtn, width: "44px", height: "44px", padding: 0, fontSize: "20px", flexShrink: 0 };
+  return (
+    <Card>
+      <div style={{ fontWeight: 800, marginBottom: "6px" }}>Shopping list{open.length > 0 ? ` (${open.length})` : ""}</div>
+      {open.length === 0 && <div style={{ color: C.textMid, fontSize: "15px", marginBottom: "6px" }}>Nothing to buy.</div>}
+      {open.map(i => (
+        <div key={i.id} style={row}>
+          <button style={box} aria-label={`Got ${i.name}`} onClick={() => tick(i, true)}>○</button>
+          <div style={{ flex: 1, fontSize: "16px" }}>
+            {i.name}
+            {(i.note || (i.createdBy && people[i.createdBy])) && (
+              <div style={{ color: C.textDim, fontSize: "13px" }}>
+                {[i.note, i.createdBy && people[i.createdBy] ? `added by ${people[i.createdBy]}` : null].filter(Boolean).join(" · ")}
+              </div>
+            )}
+          </div>
+          <button style={{ ...quietBtn, border: "none", padding: "8px" }} aria-label={`Remove ${i.name}`} onClick={() => remove(i)}>✕</button>
+        </div>
+      ))}
+      <form onSubmit={add} style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+        <input style={big} placeholder="Add something (e.g. eggs, milk)" value={name} onChange={e => setName(e.target.value)} />
+        <button type="submit" style={quietBtn} disabled={busy || !name.trim()}>{busy ? "…" : "Add"}</button>
+      </form>
+      {done.length > 0 && (
+        <details style={{ marginTop: "10px" }}>
+          <summary style={{ cursor: "pointer", color: C.textMid, fontSize: "14px" }}>Got recently ({done.length})</summary>
+          {done.map(i => (
+            <div key={i.id} style={{ ...row, color: C.textDim }}>
+              <button style={{ ...box, color: C.green }} aria-label={`Not got ${i.name}`} onClick={() => tick(i, false)}>✓</button>
+              <span style={{ flex: 1, textDecoration: "line-through" }}>{i.name}</span>
+              <button style={{ ...quietBtn, padding: "6px 10px", fontSize: "14px" }} onClick={() => onPutAway(i.name)}>Put away</button>
+            </div>
+          ))}
+        </details>
+      )}
+    </Card>
   );
 }
 
@@ -271,12 +410,14 @@ function UseControl({ s, lot, onCancel, onDone, onError }: {
   // a dropped connection can't take things out twice.
   const [requestId] = useState(() => crypto.randomUUID());
 
-  async function submit() {
+  async function submit(reason: "used" | "wasted") {
     setBusy(true);
-    const r = await pantryDb.use(s.item.id, n, lot?.id ?? null, requestId);
+    const r = await pantryDb.use(s.item.id, n, lot?.id ?? null, requestId, reason);
     setBusy(false);
     if (!r.ok) { onError(r.error); return; }
-    await onDone(`Took out ${countLabel(n, s.unit)} of ${s.item.name}.`, r.value);
+    await onDone(reason === "wasted"
+      ? `Threw out ${countLabel(n, s.unit)} of ${s.item.name}.`
+      : `Took out ${countLabel(n, s.unit)} of ${s.item.name}.`, r.value);
   }
 
   const step: React.CSSProperties = { ...quietBtn, width: "52px", height: "52px", fontSize: "24px", padding: 0 };
@@ -296,11 +437,14 @@ function UseControl({ s, lot, onCancel, onDone, onError }: {
         <span style={{ color: C.textMid }}>of {max}</span>
       </div>
       <div style={{ display: "flex", gap: "8px" }}>
-        <button style={{ ...primaryBtn, flex: 1, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={submit}>
+        <button style={{ ...primaryBtn, flex: 1, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => submit("used")}>
           {busy ? "Saving…" : `Take out ${countLabel(n, s.unit)}`}
         </button>
         <button style={quietBtn} onClick={onCancel}>Cancel</button>
       </div>
+      <button style={{ ...quietBtn, color: C.red, borderColor: C.red }} disabled={busy} onClick={() => submit("wasted")}>
+        Threw it out (went off)
+      </button>
     </div>
   );
 }
@@ -315,6 +459,7 @@ function Details({ s, load, onUseFromLot, onToast, afterWrite }: {
   afterWrite: () => Promise<void>;
 }) {
   const [level, setLevel] = useState(s.lowStockAt === null ? "" : String(s.lowStockAt));
+  const [moving, setMoving] = useState<string | null>(null);
   const history = groupHistory(load.movements.filter(m => m.itemId === s.item.id)).slice(0, 10);
   const sub: React.CSSProperties = { fontSize: "13px", color: C.textDim, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, margin: "14px 0 6px" };
 
@@ -349,10 +494,21 @@ function Details({ s, load, onUseFromLot, onToast, afterWrite }: {
             {" · "}
             {l.purchasedOn ? `bought ${formatDay(l.purchasedOn)}` : "already here before tracking"}
           </div>
-          {s.openLots.length > 1 && (
-            <button style={{ ...quietBtn, marginTop: "6px", padding: "6px 10px", fontSize: "14px" }} onClick={() => onUseFromLot(l)}>
-              Use from this batch
-            </button>
+          {moving === l.id ? (
+            <MoveControl s={s} lot={l} places={knownPlaces(load)} onCancel={() => setMoving(null)}
+              onError={text => onToast({ text, error: true })}
+              onDone={async (text, batch) => { setMoving(null); onToast({ text, undoBatch: batch }); await afterWrite(); }} />
+          ) : (
+            <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+              {s.openLots.length > 1 && (
+                <button style={{ ...quietBtn, padding: "6px 10px", fontSize: "14px" }} onClick={() => onUseFromLot(l)}>
+                  Use from this batch
+                </button>
+              )}
+              <button style={{ ...quietBtn, padding: "6px 10px", fontSize: "14px" }} onClick={() => setMoving(l.id)}>
+                Move
+              </button>
+            </div>
           )}
         </div>
       ))}
@@ -377,7 +533,58 @@ function Details({ s, load, onUseFromLot, onToast, afterWrite }: {
   );
 }
 
-interface HistoryEntry { batchId: string; kind: StockMovement["kind"]; total: number; createdAt: string; createdBy: string | null; note: string | null }
+function knownPlaces(load: Extract<PantryLoad, { status: "ready" }>): string[] {
+  return [...new Set(load.lots.map(l => l.location).filter(Boolean))].sort();
+}
+
+function MoveControl({ s, lot, places, onCancel, onDone, onError }: {
+  s: PantrySummary;
+  lot: StockLot;
+  places: string[];
+  onCancel: () => void;
+  onDone: (text: string, batch: string) => Promise<void>;
+  onError: (text: string) => void;
+}) {
+  const [n, setN] = useState(lot.quantityRemaining);
+  const [to, setTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [requestId] = useState(() => crypto.randomUUID());
+  const listId = `move-places-${lot.id}`;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!to.trim()) { onError("Where are they going?"); return; }
+    setBusy(true);
+    const r = await pantryDb.move(lot.id, n, to.trim(), requestId);
+    setBusy(false);
+    if (!r.ok) { onError(r.error); return; }
+    await onDone(`Moved ${countLabel(n, s.unit)} of ${s.item.name} to ${to.trim()}.`, r.value);
+  }
+
+  return (
+    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <input aria-label="How many to move" type="number" inputMode="numeric" min={1} max={lot.quantityRemaining}
+          style={{ ...big, width: "76px", textAlign: "center" }}
+          value={n} onChange={e => setN(Math.min(lot.quantityRemaining, Math.max(1, parseInt(e.target.value, 10) || 1)))} />
+        <span style={{ color: C.textMid }}>of {lot.quantityRemaining} to</span>
+      </div>
+      <input style={big} list={listId} autoComplete="off" placeholder="e.g. Kitchen cupboard" autoFocus
+        value={to} onChange={e => setTo(e.target.value)} />
+      <datalist id={listId}>
+        {places.filter(p => p.toLowerCase() !== lot.location.toLowerCase()).map(p => <option key={p} value={p} />)}
+      </datalist>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button type="submit" style={{ ...primaryBtn, flex: 1, opacity: busy ? 0.6 : 1 }} disabled={busy}>
+          {busy ? "Moving…" : "Move"}
+        </button>
+        <button type="button" style={quietBtn} onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+interface HistoryEntry { batchId: string; kind: StockMovement["kind"]; total: number; createdAt: string; createdBy: string | null; note: string | null; moved?: number }
 
 // One action can touch several batches; show it as one line.
 function groupHistory(moves: StockMovement[]): HistoryEntry[] {
@@ -386,6 +593,12 @@ function groupHistory(moves: StockMovement[]): HistoryEntry[] {
     const e = byBatch.get(m.batchId);
     if (e) e.total += m.quantityDelta;
     else byBatch.set(m.batchId, { batchId: m.batchId, kind: m.kind, total: m.quantityDelta, createdAt: m.createdAt, createdBy: m.createdBy, note: m.note });
+    // A move is −n here, +n there (total 0): show "moved n to <place>".
+    if (m.kind === "moved" && m.quantityDelta < 0) {
+      const g = byBatch.get(m.batchId)!;
+      g.moved = -m.quantityDelta;
+      g.note = m.note;
+    }
   }
   return [...byBatch.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
@@ -395,7 +608,9 @@ function describe(h: HistoryEntry, unit: string): string {
   switch (h.kind) {
     case "received": return `added ${n}`;
     case "used":     return `took out ${n}`;
-    case "undo":     return h.total > 0 ? `put back ${n} (undo)` : `undid adding ${n}`;
+    case "wasted":   return `threw out ${n}`;
+    case "moved":    return `moved ${countLabel(h.moved ?? 0, unit)}${h.note?.startsWith("Moved to ") ? ` to ${h.note.slice(9)}` : ""}`;
+    case "undo":     return h.total === 0 ? "undid a move" : h.total > 0 ? `put back ${n} (undo)` : `undid adding ${n}`;
     default:         return `${h.total > 0 ? "+" : "−"}${n} — ${h.note ?? "count changed"}`;
   }
 }
@@ -406,7 +621,8 @@ function shortWhen(iso: string): string {
 
 // ── Add: "I bought something" ────────────────────────────────────────────────
 
-function AddForm({ pantryItems, lots, onCancel, onDone }: {
+function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
+  initialName: string;
   pantryItems: InventoryItem[];
   lots: StockLot[];
   onCancel: () => void;
@@ -416,7 +632,7 @@ function AddForm({ pantryItems, lots, onCancel, onDone }: {
   // a second copy of a new product.
   const [requestId] = useState(() => crypto.randomUUID());
   const [newItemId] = useState(() => crypto.randomUUID());
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("cans");
   const [location, setLocation] = useState("");

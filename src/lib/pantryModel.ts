@@ -5,7 +5,7 @@
 //
 //   InventoryItem  = the product ("Diced Tomatoes", attributes.unit "cans")
 //   StockLot       = a physical batch of it (how many, where, best before)
-//   StockMovement  = one change to one lot (received / used / undo / correction)
+//   StockMovement  = one change to one lot (received / used / wasted / moved / undo / correction)
 
 import type { InventoryItem } from "../types/inventory";
 
@@ -22,7 +22,7 @@ export interface StockLot {
   createdBy: string | null;
 }
 
-export type MovementKind = "received" | "used" | "undo" | "count-correction";
+export type MovementKind = "received" | "used" | "wasted" | "moved" | "undo" | "count-correction";
 
 export interface StockMovement {
   id: string;
@@ -106,6 +106,26 @@ export function summarize(item: InventoryItem, allLots: StockLot[]): PantrySumma
     newerExpiresSooner,
     untracked,
   };
+}
+
+export interface UseSoon {
+  summary: PantrySummary;
+  lot: StockLot;
+  /** Days until best before; negative = already passed. */
+  days: number;
+}
+
+/** Batches still on hand whose best-before is within `withinDays` (or passed), soonest first. */
+export function useSoon(summaries: PantrySummary[], today: string, withinDays = 7): UseSoon[] {
+  const out: UseSoon[] = [];
+  for (const summary of summaries) {
+    for (const lot of summary.openLots) {
+      if (!lot.bestBefore) continue;
+      const days = daysUntil(lot.bestBefore, today);
+      if (days <= withinDays) out.push({ summary, lot, days });
+    }
+  }
+  return out.sort((a, b) => a.days - b.days || a.summary.item.name.localeCompare(b.summary.item.name));
 }
 
 export function unitOf(item: InventoryItem): string {

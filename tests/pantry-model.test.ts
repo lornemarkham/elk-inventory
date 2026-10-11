@@ -1,7 +1,7 @@
 // Pantry model (src/lib/pantryModel.ts) — pure ordering/summary logic.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { countLabel, daysUntil, fifoOrder, findProductByName, formatDay, summarize, type StockLot } from "../src/lib/pantryModel.ts";
+import { countLabel, daysUntil, fifoOrder, findProductByName, formatDay, summarize, useSoon, type StockLot } from "../src/lib/pantryModel.ts";
 import type { InventoryItem } from "../src/types/inventory.ts";
 
 const item = (over: Partial<InventoryItem> = {}): InventoryItem => ({
@@ -81,4 +81,18 @@ test("labels and dates", () => {
   assert.equal(formatDay("2027-03-12"), "12 Mar 2027");
   assert.equal(daysUntil("2026-10-12", "2026-10-10"), 2);
   assert.equal(daysUntil("2026-10-01", "2026-10-10"), -9);
+});
+
+test("use soon: open batches best before within a week (or passed), soonest first; empty or undated ones skipped", () => {
+  const milk = item({ id: "milk", name: "Milk" });
+  const tom = item();
+  const lots = [
+    lot({ itemId: "milk", bestBefore: "2026-10-09", quantityRemaining: 1 }),   // passed
+    lot({ itemId: "tom", bestBefore: "2026-10-15" }),                         // 4 days
+    lot({ itemId: "tom", bestBefore: "2026-10-20" }),                         // 9 days — not yet
+    lot({ itemId: "tom", bestBefore: "2026-10-12", quantityRemaining: 0 }),   // used up
+    lot({ itemId: "tom", bestBefore: null }),
+  ];
+  const soon = useSoon([summarize(tom, lots), summarize(milk, lots)], "2026-10-11");
+  assert.deepEqual(soon.map(s => [s.summary.item.name, s.days]), [["Milk", -2], ["Diced Tomatoes", 4]]);
 });

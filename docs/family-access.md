@@ -15,7 +15,7 @@ add themselves to the list. Only the owner can, from the SQL Editor.
 | File | Changes | Leaves alone |
 |---|---|---|
 | `supabase-family-access.sql` | Adds `elk_family_members` and `elk_is_family_member()`. Replaces every policy on `inventory_items` and `purchase_drafts` (and on the pantry tables, if present) with member-only ones. | All data, `profiles`, `auth.users` and its trigger, and every table belonging to the other app |
-| `supabase-pantry.sql` | Adds `stock_lots`, `stock_movements`, `inventory_feedback` and the `pantry_*` functions. Everything is member-only. | All existing data |
+| `supabase-pantry.sql` | Adds `stock_lots`, `stock_movements`, `inventory_feedback`, the shopping list (`pantry_shopping_items`) and the `pantry_*` functions (receive, use/throw out, move, undo, low-stock, shopping add). Everything is member-only. Re-running it over the first version adds waste, moving and the shopping list. | All existing data |
 
 Both files can be run again safely. If a table with one of their names already
 exists and wasn't created by ELK, they stop without changing anything.

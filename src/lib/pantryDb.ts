@@ -45,6 +45,8 @@ function rowToMovement(r: Row): StockMovement {
   };
 }
 
+const NEEDS_UPDATE = "This needs a database update first — nothing was changed. (For Lorne: re-run supabase-pantry.sql.)";
+
 // PostgREST: 42P01 = table missing (old), PGRST205 = not in schema cache.
 function isMissingTable(err: { code?: string; message?: string }): boolean {
   return err.code === "42P01" || err.code === "PGRST205" || /does not exist|schema cache/i.test(err.message ?? "");
@@ -81,6 +83,8 @@ async function rpc<T>(fn: string, args: Row): Promise<PantryResult<T>> {
   const { data, error } = await supabase.rpc(fn, args);
   if (error) {
     console.error(`[ELK] ${fn} error:`, error.message);
+    // PGRST202: the database doesn't have this function (or these arguments) yet.
+    if (error.code === "PGRST202") return { ok: false, error: NEEDS_UPDATE };
     return { ok: false, error: error.message };
   }
   return { ok: true, value: data as T };
@@ -108,8 +112,19 @@ export function receive(args: {
   });
 }
 
-export function use(itemId: string, quantity: number, lotId: string | null, requestId: string): Promise<PantryResult<string>> {
-  return rpc<string>("pantry_use", { p_item_id: itemId, p_quantity: quantity, p_lot_id: lotId, p_request_id: requestId });
+export function use(
+  itemId: string, quantity: number, lotId: string | null, requestId: string, reason: "used" | "wasted" = "used",
+): Promise<PantryResult<string>> {
+  // p_reason is only sent for "wasted", so using still works before the
+  // database has the newer pantry_use.
+  return rpc<string>("pantry_use", {
+    p_item_id: itemId, p_quantity: quantity, p_lot_id: lotId, p_request_id: requestId,
+    ...(reason === "wasted" ? { p_reason: reason } : {}),
+  });
+}
+
+export function move(lotId: string, quantity: number, toLocation: string, requestId: string): Promise<PantryResult<string>> {
+  return rpc<string>("pantry_move", { p_lot_id: lotId, p_quantity: quantity, p_to_location: toLocation, p_request_id: requestId });
 }
 
 export function undo(batchId: string): Promise<PantryResult<string>> {
@@ -130,5 +145,69 @@ export async function sendFeedback(message: string, page: string): Promise<Pantr
     console.error("[ELK] sendFeedback error:", error.message);
     return { ok: false, error: isMissingTable(error) ? "Feedback isn't switched on yet." : error.message };
   }
+  return { ok: true, value: undefined };
+}
+
+// ── Shopping list ────────────────────────────────────────────────────────────
+
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  itemId: string | null;
+  note: string | null;
+  source: "manual" | "low-stock" | "recipe";
+  createdAt: string;
+  createdBy: string | null;
+  doneAt: string | null;
+}
+
+export type ShoppingLoad =
+  | { status: "ready"; items: ShoppingItem[] }
+  | { status: "not-set-up" }
+  | { status: "error"; error: string };
+
+/** Everything still to buy, plus what was ticked off in the last two days. */
+export async function loadShopping(): Promise<ShoppingLoad> {
+  const since = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  const { data, error } = await supabase.from("pantry_shopping_items").select("*")
+    .or(`done_at.is.null,done_at.gte."${since}"`)
+    .order("created_at", { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return { status: "not-set-up" };
+    console.error("[ELK] loadShopping error:", error.message);
+    return { status: "error", error: error.message };
+  }
+  return {
+    status: "ready",
+    items: (data as Row[]).map(r => ({
+      id:        r.id as string,
+      name:      r.name as string,
+      itemId:    (r.item_id as string | null) ?? null,
+      note:      (r.note as string | null) ?? null,
+      source:    r.source as ShoppingItem["source"],
+      createdAt: r.created_at as string,
+      createdBy: (r.created_by as string | null) ?? null,
+      doneAt:    (r.done_at as string | null) ?? null,
+    })),
+  };
+}
+
+/** Returns how many were added (names already on the list are skipped). */
+export function addShopping(names: string[], note: string | null, source: ShoppingItem["source"]): Promise<PantryResult<number>> {
+  return rpc<number>("pantry_shopping_add", { p_names: names, p_note: note, p_source: source });
+}
+
+export async function setShoppingDone(id: string, done: boolean): Promise<PantryResult> {
+  const { data: u } = await supabase.auth.getUser();
+  const { error } = await supabase.from("pantry_shopping_items")
+    .update(done ? { done_at: new Date().toISOString(), done_by: u.user?.id ?? null } : { done_at: null, done_by: null })
+    .eq("id", id);
+  if (error) { console.error("[ELK] setShoppingDone error:", error.message); return { ok: false, error: error.message }; }
+  return { ok: true, value: undefined };
+}
+
+export async function removeShopping(id: string): Promise<PantryResult> {
+  const { error } = await supabase.from("pantry_shopping_items").delete().eq("id", id);
+  if (error) { console.error("[ELK] removeShopping error:", error.message); return { ok: false, error: error.message }; }
   return { ok: true, value: undefined };
 }

@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --import ./tests/resolve-ts.mjs --test 'tests/*.test.ts'"
+    "test": "node --import ./tests/resolve-ts.mjs --test 'tests/*.test.ts'",
+    "restore-sql": "node --import ./tests/resolve-ts.mjs scripts/restore-sql.ts",
+    "restore-drill": "node --import ./tests/resolve-ts.mjs scripts/restore-drill.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

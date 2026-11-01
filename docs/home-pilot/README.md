@@ -160,8 +160,10 @@ What already exists in 8bf1753 against what the pilot needs:
 | Stock in | Done | `pantry_receive`; retry-safe; undo |
 | Stock out | Done | `pantry_use`, oldest first; **Throw out** (v2); undo |
 | Shopping list | Done (v2, not deployed) | `pantry_shopping_items`; ELK Kitchen adds to it |
-| Printable inventory | **Missing** | No print view or print CSS exists |
-| Barcode input | **Missing** | No barcode field, scanner or camera reading |
+| Printable inventory | **Built** (`home-pilot-complete`) | `/print`, `PrintPage.tsx` |
+| Barcode input | **Built** (`home-pilot-complete`) | Scan box + keyboard-scanner detection on `/pantry` |
+| Full export + restore | **Built** (`home-pilot-complete`) | `/backup`; `backup-and-restore.md` |
+| Starter items re-appearing | **Fixed** (`home-pilot-complete`) | `src/lib/seed.ts` |
 
 Smallest additions, each a separate small branch with tests, with no new
 database and no new app:
@@ -222,3 +224,64 @@ The docs predate Supabase. Keep local-first, offline, paper and barcode as
 
 Still accurate: `docs/family-access.md`, `docs/knowledge/*`,
 `docs/architecture/engineering-decisions.md`, `docs/vision/product-brain.md`.
+
+## 8. Home pilot — what was built and how to switch it on
+
+Branch `home-pilot-complete` = `home-pilot-prep` (ed4ae18) + the work below. It
+contains `pantry-family-kitchen` (8bf1753) and `kitchen-recipe-extract` (b1e3f3f)
+underneath, so it is a plain fast-forward of `main`. **Nothing has been pushed,
+merged, deployed or run against production.**
+
+| Item | What changed | Proof |
+|---|---|---|
+| P1 Deleted starter items came back | `App.tsx` no longer tops up an existing database; starter items load only into a completely empty one (`src/lib/seed.ts`) | `tests/seed.test.ts`; browser check: no write to `inventory_items` on load |
+| P2 Complete export | **Backup & print** → one JSON with items, batches, full history (paged past the 1000-row cap), shopping list, storage locations; CSVs for spreadsheets | `tests/export-restore.test.ts` |
+| P2 Restore | Owner-run SQL generated from the file (`npm run restore-sql`), rehearsed with `npm run restore-drill`; inserts only, history stays append-only | same; `backup-and-restore.md` |
+| P3 Printable inventory | `/print`: a sheet per storage place with quantity, best-before and blank *Counted / + − / Notes* columns, plus the open shopping list. Food or Everything | `tests/barcode-print.test.ts`; PDF + screenshots |
+| P4 Barcode input | USB/Bluetooth keyboard scanners work in the **scan box**, or anywhere on `/pantry` with nothing focused (a fast burst of digits + Enter). Known code opens the product (Use / Details / Add more); unknown code offers *Add as new product* (code pre-filled) or *Link to an existing product*. Stored as `attributes.barcode`; UPC-A and EAN-13 forms of one code match | `tests/barcode-print.test.ts`, `tests/barcode-sql.test.ts`; browser check |
+| Mobile | Page padding and nav fit a 390px phone (nav scrolls sideways inside itself, no page-wide sideways scroll), 40px+ header buttons, 16px inputs so iOS doesn't zoom | Playwright at 390×844, screenshots |
+
+No database change is needed for any of this: no new tables, no migration. Barcodes
+use the existing `attributes` JSON column, and the Pantry guard trigger keeps counts safe
+(tested).
+
+### Exact production activation (owner)
+
+Order matters only in that SQL comes first so the new screens have something to read.
+Each step is independent of the app deploy, and the app degrades safely if a table is missing.
+
+1. **Back up.** Follow §5 "Owner backup now" (`pg_dump` + in-app Export). The in-app
+   export at this point is items-only (production still runs 823621f).
+2. **Database** — only if `activation-check.sql` says it hasn't been done. Follow
+   `docs/family-access.md` steps 1–6 exactly: run `activation-check.sql` → `supabase-family-access.sql`
+   → add yourself → `supabase-pantry.sql` → run `activation-check.sql` again → test with an
+   account that is not on the list → add the family. Do not skip the outsider test: this project is
+   shared with another app.
+3. **Release the code.** In a clean checkout (the main working copy has unrelated uncommitted NPI
+   edits — don't merge from there):
+   ```sh
+   git fetch origin
+   git checkout main && git merge --ff-only home-pilot-complete   # after you've pushed that branch
+   npm ci && npm test && npm run build                            # expect 0 failures
+   git push origin main                                           # Vercel auto-deploys elk-inventory
+   ```
+   If you prefer review: push `home-pilot-complete`, open a PR, and merge it on GitHub.
+   Vercel's preview for the branch is a good place to try the screens first.
+4. **Smoke test on the live site (5 minutes, on your phone):**
+   - Backup & print → *Export everything*; open the file and check the counts line shows items, batches, history.
+   - `npm run restore-drill -- <that file>` on your computer → must say `DRILL PASSED`.
+   - Print → *Print a count sheet* → preview shows one section per place, no app header.
+   - Pantry → type `5000159484695` in the scan box → "Not linked to anything yet"; add a real product with a real barcode; scan it again with the scanner.
+   - Delete one starter item, reload twice, confirm it stays gone.
+5. **Start the two-week pilot** with `backup-and-restore.md` §1 as the weekly routine.
+
+### Known limits (honest list)
+
+- **Camera scanning is not built.** Keyboard-mode scanners only. (iOS Safari has no `BarcodeDetector`.)
+  Check your scanner is in *keyboard / HID* mode and sends Enter after the code (most do by default; Bluetooth ones need pairing as a keyboard).
+- A scanner typing into the *quantity* or *date* field types into that field. Scan with nothing focused or in the scan box.
+- If the table is ever **completely empty** (every item deleted), the next load reseeds the 95 starter items. Normal use never reaches this.
+- The offline mode and paper-to-app entry from the roadmap don't exist. The printed sheet is a paper copy; you type changes back in.
+- The movement history screen shows the latest 500 movements (the export has all of them).
+- Export does not include purchase drafts, feedback or the family list (see `backup-and-restore.md`).
+- Restore has been proven on test databases only.

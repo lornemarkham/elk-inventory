@@ -4,6 +4,7 @@ import type { InventoryItem } from "./types/inventory";
 import type { PurchaseDraft } from "./types/purchase";
 import type { ApproveAction } from "./lib/purchaseDrafts";
 import { seedInventory } from "./data/inventory";
+import { seedPlan } from "./lib/seed";
 import { ZONES } from "./data/zones";
 import { COLLECTIONS } from "./data/collections";
 import { CONTAINERS } from "./data/containers";
@@ -21,6 +22,8 @@ import CommandBar from "./components/CommandBar";
 import CapturePage from "./components/CapturePage";
 import CapturedReviewQueue from "./components/CapturedReviewQueue";
 import PantryPage from "./components/PantryPage";
+import BackupPage from "./components/BackupPage";
+import PrintPage from "./components/PrintPage";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 //
@@ -32,6 +35,8 @@ import PantryPage from "./components/PantryPage";
 //   /zones                     Zones
 //   /collections               Kits & Collections
 //   /pantry                    Pantry — food stock by batch (phone-first)
+//   /backup                    Export everything, spreadsheets, link to print
+//   /print                     Printable count sheet by storage place
 //
 // /items/:id uses React Router's "background location" pattern: when you
 // click an item from elsewhere in the app, we navigate to /items/:id but
@@ -79,21 +84,15 @@ export default function App() {
       if (fetched === null) {
         // Couldn't read — show nothing rather than seed over real data.
         setLoadError(true);
-      } else if (fetched.length === 0) {
-        // First-time setup: seed the database with initial inventory
-        console.info("[ELK] Empty database — seeding with initial inventory…");
-        await db.insertMissingItems(seedInventory);
-        setItems(seedInventory);
       } else {
-        // Auto-merge: inject any new seed items whose IDs are not yet in the DB
-        const existingIds = new Set(fetched.map(i => i.id));
-        const missing = seedInventory.filter(i => !existingIds.has(i.id));
-        if (missing.length > 0) {
-          await db.insertMissingItems(missing);
-          setItems([...fetched, ...missing]);
-        } else {
-          setItems(fetched);
+        // Starter items go in only when the database is brand new and empty.
+        // Never top up an existing database: that brought deleted ones back.
+        const toSeed = seedPlan(fetched, seedInventory);
+        if (toSeed.length > 0) {
+          console.info("[ELK] Empty database — seeding with initial inventory…");
+          await db.insertMissingItems(toSeed);
         }
+        setItems([...fetched, ...toSeed]);
       }
       setDbLoading(false);
     }
@@ -272,7 +271,7 @@ export default function App() {
   ).length;
 
   return (
-    <div style={{
+    <div className="elk-root" style={{
       minHeight: "100vh",
       background: C.bg,
       color: C.text,
@@ -281,7 +280,7 @@ export default function App() {
       paddingBottom: "80px",
     }}>
       {/* Header */}
-      <header style={{
+      <header className="elk-header elk-chrome" style={{
         borderBottom: `1px solid ${C.border}`,
         padding: "16px 28px",
         maxWidth: "1200px",
@@ -292,12 +291,12 @@ export default function App() {
             <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 800, letterSpacing: "-0.01em", color: C.text }}>
               ELK
             </h1>
-            <p style={{ margin: "2px 0 0", color: C.textDim, fontSize: "12px" }}>
+            <p className="elk-tagline" style={{ margin: "2px 0 0", color: C.textDim, fontSize: "12px" }}>
               Reduce friction. Increase capability. Create calm.
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          <div className="elk-actions" style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             {/* Capture — the front door. Always the first, boldest thing in the header. */}
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <button
@@ -337,7 +336,7 @@ export default function App() {
             </div>
 
             {/* Nav tabs */}
-            <nav style={{
+            <nav className="elk-nav" style={{
               display: "flex", gap: "3px",
               background: C.bgInset,
               border: `1px solid ${C.border}`,
@@ -369,7 +368,7 @@ export default function App() {
             >
               + Add Item
             </button>
-            <button onClick={() => exportJSON(items)} style={{
+            <button onClick={() => navigate("/backup")} title="Export everything, spreadsheets, print" style={{
               background: "transparent",
               border: `1px solid ${C.border}`,
               color: C.textMid,
@@ -378,7 +377,7 @@ export default function App() {
               fontSize: "13px",
               cursor: "pointer",
             }}>
-              Export
+              Backup &amp; print
             </button>
             <button onClick={handleSignOut} title="Sign out" style={{
               background: "transparent",
@@ -395,7 +394,7 @@ export default function App() {
         </div>
       </header>
 
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px 28px 0" }}>
+      <main className="elk-main" style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px 28px 0" }}>
         {dbLoading ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textDim, fontSize: "13px" }}>
             Loading inventory…
@@ -413,6 +412,8 @@ export default function App() {
             <Route path="/zones" element={<ZonePage items={items} onItemClick={handleItemClick} />} />
             <Route path="/collections" element={<CollectionsPage items={items} />} />
             <Route path="/pantry" element={<PantryPage items={items} onItemsChanged={refreshItems} />} />
+            <Route path="/backup" element={<BackupPage />} />
+            <Route path="/print" element={<PrintPage items={items} />} />
             <Route
               path="/capture"
               element={
@@ -503,14 +504,4 @@ function ItemDetailModalRoute({
   }
 
   return <ItemDetailPanel item={item} onClose={handleClose} onEdit={onEdit} onDelete={onDelete} />;
-}
-
-function exportJSON(items: InventoryItem[]) {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
 }

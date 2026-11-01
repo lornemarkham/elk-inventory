@@ -11,6 +11,22 @@
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #1c1a17; }
       ::-webkit-scrollbar-thumb { background: #2e2a22; border-radius: 3px; }
+      /* Phones: tighter page padding, a nav that scrolls sideways instead of
+         wrapping into a wall of buttons, finger-sized tap targets, and 16px
+         inputs so iOS doesn't zoom in when one is focused. */
+      @media (max-width: 700px) {
+        .elk-header { padding: 10px 12px !important; }
+        .elk-main { padding: 14px 12px 0 !important; }
+        .elk-tagline { display: none; }
+        .elk-actions { width: 100%; }
+        .elk-nav { flex: 1 1 100%; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .elk-nav a { white-space: nowrap; padding: 10px 12px !important; }
+        .elk-header button { min-height: 40px; }
+        input, select, textarea { font-size: 16px !important; }
+      }
+      @media print {
+        .elk-chrome { display: none !important; }
+      }
     </style>
   </head>
   <body>

@@ -138,3 +138,27 @@ export async function insertMissingItems(items: InventoryItem[]): Promise<void> 
 
   if (error) console.error("[ELK] insertMissingItems error:", error.message);
 }
+
+// Barcode on a product (attributes.barcode). Touches only the attributes
+// column, and only that one key, so it can't write a stale copy of anything
+// else over a family member's edit. The pantry guard trigger keeps the
+// pantry's own attribute keys and the count.
+export async function setBarcode(id: string, code: string | null): Promise<WriteResult> {
+  const { data, error: readError } = await supabase
+    .from("inventory_items").select("attributes").eq("id", id).single();
+  if (readError) {
+    console.error("[ELK] setBarcode read error:", readError.message);
+    return { ok: false, error: readError.message };
+  }
+  const attributes = { ...((data?.attributes as Record<string, unknown> | null) ?? {}) };
+  if (code) attributes.barcode = code; else delete attributes.barcode;
+  const { error } = await supabase
+    .from("inventory_items")
+    .update({ attributes, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) {
+    console.error("[ELK] setBarcode error:", error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}

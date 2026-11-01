@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { InventoryItem } from "../types/inventory";
 import { C } from "../styles";
 import * as pantryDb from "../lib/pantryDb";
+import * as db from "../lib/db";
+import { ScanDetector, barcodeOf, findByBarcode, looksLikeBarcode, normalizeBarcode } from "../lib/barcode";
 import type { PantryLoad, ShoppingItem, ShoppingLoad } from "../lib/pantryDb";
 import {
   countLabel, daysUntil, findProductByName, formatDay, isPantryItem, localToday, summarize, unitOf, useSoon,
@@ -48,8 +50,11 @@ const quietBtn: React.CSSProperties = {
 export default function PantryPage({ items, onItemsChanged }: Props) {
   const [load, setLoad] = useState<PantryLoad | null>(null);
   const [shopping, setShopping] = useState<ShoppingLoad | null>(null);
-  // false = closed; string = open, with this name filled in ("" for blank).
-  const [adding, setAdding] = useState<false | string>(false);
+  // false = closed; otherwise open, with this name (and scanned barcode) filled in.
+  const [adding, setAdding] = useState<false | { name: string; barcode: string }>(false);
+  // The last barcode scanned, and what it matched.
+  const [scan, setScan] = useState<{ code: string; matches: InventoryItem[] } | null>(null);
+  const [scanText, setScanText] = useState("");
   const [toast, setToast] = useState<Toast>(null);
   const [search, setSearch] = useState("");
   const [undoing, setUndoing] = useState(false);
@@ -65,6 +70,27 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
   async function afterWrite() {
     await Promise.all([reload(), onItemsChanged()]);
   }
+
+  // Scanners in keyboard mode type the code very fast and press Enter. When
+  // nothing is focused, catch that burst; the scan box below handles the rest.
+  const onScanRef = useRef<(raw: string) => void>(() => {});
+  const addingRef = useRef(false);
+  useEffect(() => {
+    const detector = new ScanDetector();
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      const code = detector.feed(e.key, e.timeStamp);
+      // With the add form open, a scan must not throw away what's been typed.
+      if (code && addingRef.current) { e.preventDefault(); return; }
+      if (code) {
+        e.preventDefault();   // the scanner's Enter must not "click" a focused button
+        onScanRef.current(code);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const pantryItems = useMemo(() => items.filter(isPantryItem), [items]);
   const lots = load?.status === "ready" ? load.lots : [];
@@ -103,11 +129,24 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
   const low = summaries.filter(s => s.isLow);
   const soon = useSoon(summaries, localToday());
 
-  function openAdd(name = "") {
-    setAdding(name);
+  function openAdd(name = "", barcode = "") {
+    setAdding({ name, barcode });
+    setScan(null);
     setToast(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  function handleScan(raw: string) {
+    const code = normalizeBarcode(raw);
+    if (!code) return;
+    setToast(null);
+    setAdding(false);
+    setSearch("");
+    setScan({ code, matches: findByBarcode(items, code) });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  onScanRef.current = handleScan;
+  addingRef.current = adding !== false;
 
   return (
     <div style={{ maxWidth: "640px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -147,10 +186,34 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
         </div>
       )}
 
+      <form onSubmit={e => {
+        e.preventDefault();
+        if (!scanText.trim()) return;
+        if (!looksLikeBarcode(scanText)) { setToast({ text: "That doesn't look like a barcode (8–14 digits). Use “Find something” to search by name.", error: true }); return; }
+        handleScan(scanText);
+        setScanText("");
+      }} style={{ display: "flex", gap: "8px" }}>
+        <input style={big} aria-label="Scan or type a barcode" placeholder="Scan or type a barcode" inputMode="numeric"
+          enterKeyHint="search" autoComplete="off" value={scanText} onChange={e => setScanText(e.target.value)} />
+        <button type="submit" style={quietBtn} disabled={!scanText.trim()}>Look up</button>
+      </form>
+
+      {scan && (
+        <ScanResult scan={scan} load={load} pantryItems={pantryItems}
+          summaries={summaries}
+          onClose={() => setScan(null)}
+          onAddNew={() => openAdd("", scan.code)}
+          onAddMore={s => openAdd(s.item.name, scan.code)}
+          onToast={setToast}
+          afterWrite={afterWrite} />
+      )}
+
       {adding !== false ? (
         <AddForm
-          key={adding}
-          initialName={adding}
+          key={adding.name + adding.barcode}
+          initialName={adding.name}
+          initialBarcode={adding.barcode}
+          allItems={items}
           pantryItems={pantryItems}
           lots={lots}
           onCancel={() => setAdding(false)}
@@ -621,8 +684,10 @@ function shortWhen(iso: string): string {
 
 // ── Add: "I bought something" ────────────────────────────────────────────────
 
-function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
+function AddForm({ initialName, initialBarcode, allItems, pantryItems, lots, onCancel, onDone }: {
   initialName: string;
+  initialBarcode: string;
+  allItems: InventoryItem[];
   pantryItems: InventoryItem[];
   lots: StockLot[];
   onCancel: () => void;
@@ -639,6 +704,7 @@ function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
   const [locationTouched, setLocationTouched] = useState(false);
   const [bestBefore, setBestBefore] = useState("");
   const [boughtOn, setBoughtOn] = useState(localToday());
+  const [barcode, setBarcode] = useState(initialBarcode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -666,6 +732,10 @@ function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
     if (!name.trim()) { setError("What did you buy?"); return; }
     if (!Number.isFinite(n) || n < 1) { setError("How many? Enter a whole number, 1 or more."); return; }
     if (!shownLocation.trim()) { setError("Where did you put it? (e.g. “Pantry, top shelf”)"); return; }
+    const code = normalizeBarcode(barcode);
+    if (barcode.trim() && !looksLikeBarcode(barcode)) { setError("The barcode should be 8–14 digits, or leave it empty."); return; }
+    const owner = code ? findByBarcode(allItems, code).find(i => i.id !== (existing?.id ?? newItemId)) : undefined;
+    if (owner) { setError(`That barcode already belongs to “${owner.name}”. Clear it here, or add to that product instead.`); return; }
     setError("");
     setBusy(true);
     const r = await pantryDb.receive({
@@ -680,7 +750,13 @@ function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
     setBusy(false);
     if (!r.ok) { setError(r.error); return; }
     const u = existing ? unitOf(existing) : (unit.trim() || "items");
-    await onDone(`Added ${countLabel(n, u)} of ${existing?.name ?? name.trim()} — on ${shownLocation.trim()}.`, r.value);
+    // The stock is saved; remembering the barcode is a bonus and must not turn it into an error.
+    let codeNote = "";
+    if (code && (!existing || barcodeOf(existing) !== code)) {
+      const saved = await db.setBarcode(existing?.id ?? newItemId, code);
+      codeNote = saved.ok ? " Barcode remembered." : " (The barcode couldn't be saved — scan it again later.)";
+    }
+    await onDone(`Added ${countLabel(n, u)} of ${existing?.name ?? name.trim()} — on ${shownLocation.trim()}.${codeNote}`, r.value);
   }
 
   const label: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "6px", fontSize: "15px", fontWeight: 700 };
@@ -734,6 +810,12 @@ function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
         </label>
 
         <label style={label}>
+          <span>Barcode <span style={hint}>(optional — scan it here to find this product next time)</span></span>
+          <input style={big} inputMode="numeric" autoComplete="off" placeholder="Scan or type" value={barcode}
+            onChange={e => setBarcode(e.target.value)} />
+        </label>
+
+        <label style={label}>
           <span>Best before <span style={hint}>(optional — printed on the can)</span></span>
           <input style={big} type="date" value={bestBefore} onChange={e => setBestBefore(e.target.value)} />
         </label>
@@ -753,6 +835,75 @@ function AddForm({ initialName, pantryItems, lots, onCancel, onDone }: {
         </div>
       </form>
     </Card>
+  );
+}
+
+// ── Barcode scan result ──────────────────────────────────────────────────────
+
+function ScanResult({ scan, load, pantryItems, summaries, onClose, onAddNew, onAddMore, onToast, afterWrite }: {
+  scan: { code: string; matches: InventoryItem[] };
+  load: Extract<PantryLoad, { status: "ready" }>;
+  pantryItems: InventoryItem[];
+  summaries: PantrySummary[];
+  onClose: () => void;
+  onAddNew: () => void;
+  onAddMore: (s: PantrySummary) => void;
+  onToast: (t: Toast) => void;
+  afterWrite: () => Promise<void>;
+}) {
+  const [linkTo, setLinkTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const found = scan.matches.map(m => summaries.find(s => s.item.id === m.id)).filter((s): s is PantrySummary => !!s);
+
+  async function link() {
+    const item = pantryItems.find(i => i.id === linkTo);
+    if (!item) return;
+    setBusy(true);
+    const r = await db.setBarcode(item.id, scan.code);
+    setBusy(false);
+    if (!r.ok) { onToast({ text: `Couldn't save the barcode: ${r.error}`, error: true }); return; }
+    onToast({ text: `Barcode saved on ${item.name}. Scan it again to find it.` });
+    onClose();
+    await afterWrite();
+  }
+
+  const title: React.CSSProperties = { fontWeight: 800, marginBottom: "6px" };
+  if (found.length === 0) {
+    return (
+      <Card accent={C.blue}>
+        <div style={title}>Barcode {scan.code}</div>
+        <div style={{ color: C.textMid, fontSize: "15px", marginBottom: "10px" }}>
+          {scan.matches.length > 0
+            ? "This code is on something that isn't food, so it isn't in the pantry."
+            : "Not linked to anything yet."}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button style={primaryBtn} onClick={onAddNew}>＋ Add it as a new product</button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <select aria-label="Link to an existing product" style={big} value={linkTo} onChange={e => setLinkTo(e.target.value)}>
+              <option value="">…or it's one we already have</option>
+              {pantryItems.map(i => <option key={i.id} value={i.id}>{i.name}{barcodeOf(i) ? " (has a code)" : ""}</option>)}
+            </select>
+            <button style={quietBtn} disabled={!linkTo || busy} onClick={link}>{busy ? "…" : "Link"}</button>
+          </div>
+          <button style={{ ...quietBtn, border: "none" }} onClick={onClose}>Dismiss</button>
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: C.textMid, fontSize: "14px" }}>
+        <span>Scanned {scan.code}{found.length > 1 ? ` — ${found.length} products share this code, check the barcodes` : ""}</span>
+        <button style={{ ...quietBtn, padding: "4px 10px" }} onClick={onClose}>Dismiss</button>
+      </div>
+      {found.map(s => (
+        <div key={s.item.id} data-testid="scan-match" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <ProductCard s={s} load={load} onToast={onToast} afterWrite={afterWrite} />
+          <button style={quietBtn} onClick={() => onAddMore(s)}>＋ Add more {s.item.name}</button>
+        </div>
+      ))}
+    </div>
   );
 }
 

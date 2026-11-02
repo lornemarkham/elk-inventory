@@ -5,6 +5,7 @@
 
 import { supabase } from "./supabase";
 import type { InventoryItem } from "../types/inventory";
+import { mergeAttributes } from "./barcode";
 
 // ── Mapping helpers ────────────────────────────────────────────────────────────
 
@@ -101,9 +102,24 @@ export async function createItem(item: InventoryItem): Promise<WriteResult> {
 
 // keepQuantity: leave the stored count alone (used for pantry-tracked items,
 // whose count is maintained by the pantry_* SQL functions).
-export async function updateItem(item: InventoryItem, opts: { keepQuantity?: boolean } = {}): Promise<WriteResult> {
+// openedAttributes: the attributes the edit form was opened with. When given,
+// attributes are merged with the stored ones (see mergeAttributes) so a stale
+// form can't erase a barcode or other key added since it was opened.
+export async function updateItem(
+  item: InventoryItem,
+  opts: { keepQuantity?: boolean; openedAttributes?: InventoryItem["attributes"] } = {},
+): Promise<WriteResult> {
   const row = itemToRow(item);
   if (opts.keepQuantity) delete row.quantity;
+  if (opts.openedAttributes !== undefined) {
+    const { data, error: readError } = await supabase
+      .from("inventory_items").select("attributes").eq("id", item.id).single();
+    if (readError) {
+      console.error("[ELK] updateItem read error:", readError.message);
+      return { ok: false, error: readError.message };
+    }
+    row.attributes = mergeAttributes(opts.openedAttributes, item.attributes, data?.attributes as Record<string, unknown> | null ?? {});
+  }
   const { error } = await supabase
     .from("inventory_items")
     .update(row)

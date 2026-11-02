@@ -251,5 +251,35 @@ async function open(viewport, path) {
   await ctx.close();
 }
 
+// 6. Stale edit form must not erase a barcode linked after the form was opened
+{
+  const { ctx, page } = await open({ width: 1100, height: 800 }, "/inventory");
+  await page.getByText("Cordless drill").first().click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByText("Edit Item").waitFor();
+  // Meanwhile (Pantry screen / another family member) the product gets a barcode.
+  db.inventory_items.find(i => i.id === "drill").attributes = { barcode: "5000159484695" };
+  await page.getByRole("button", { name: "Save Changes" }).click();
+  await page.waitForTimeout(600);
+  assert.equal(db.inventory_items.find(i => i.id === "drill").attributes.barcode, "5000159484695", "barcode survived the stale save");
+  ok("saving an old edit form keeps a barcode linked after it was opened");
+  await ctx.close();
+}
+
+// 7. Movement history and shopping list on a phone
+{
+  const { ctx, page } = await open({ width: 390, height: 844 }, "/pantry");
+  await page.getByText("I bought something").waitFor();
+  const body = await page.locator("body").innerText();
+  assert.ok(body.includes("Eggs") && body.includes("Milk"), "shopping list shows its items");
+  await page.getByRole("button", { name: "Details" }).first().click();
+  await page.getByText("History", { exact: true }).first().waitFor();
+  assert.ok((await page.locator("body").innerText()).match(/received|Bought|Added|\+12/i), "history shows the batch received");
+  await page.screenshot({ path: `${shots}/pantry-history-mobile.png`, fullPage: true });
+  assert.ok((await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, "no sideways scroll");
+  ok("phone width: shopping list shows items; Details shows movement history; no sideways scroll");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${results.length} browser checks passed`);

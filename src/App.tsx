@@ -148,7 +148,12 @@ export default function App() {
     setItems((prev) => prev.map((i) => i.id === updated.id ? patched : i));  // optimistic
     // Pantry-tracked counts are owned by the Pantry screen's batch history —
     // the edit form must not write a (possibly stale) count over them.
-    db.updateItem(patched, { keepQuantity: patched.attributes?.pantryTracked === true });
+    // editingItem holds the attributes the form was opened with: keys the form
+    // didn't change keep their stored value, so a stale form can't erase a barcode.
+    db.updateItem(patched, {
+      keepQuantity: patched.attributes?.pantryTracked === true,
+      openedAttributes: editingItem?.id === updated.id ? (editingItem.attributes ?? {}) : undefined,
+    }).then((r) => { if (r.ok) void refreshItems(); });  // show what was actually stored
     setEditingItem(null);
   }
 

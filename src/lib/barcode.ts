@@ -78,3 +78,24 @@ export class ScanDetector {
     return null;
   }
 }
+
+type Attrs = Record<string, unknown>;
+
+/**
+ * Three-way merge for saving an edit form. `opened` is the attributes the form
+ * was opened with, `edited` is what it is saving, `current` is what the
+ * database holds now. A key the form changed (or removed) takes the form's
+ * value; every other key keeps the database's value, so a barcode (or anything
+ * else) added from the Pantry screen or by another family member while the form
+ * was open is not erased by the stale copy.
+ */
+export function mergeAttributes(opened: Attrs | undefined, edited: Attrs | undefined, current: Attrs | undefined): Attrs {
+  const o = opened ?? {}, e = edited ?? {}, c = current ?? {};
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const out: Attrs = { ...c };
+  for (const k of new Set([...Object.keys(o), ...Object.keys(e)])) {
+    if (same(o[k], e[k])) continue;                 // form didn't touch it: keep the database's value
+    if (k in e) out[k] = e[k]; else delete out[k];  // form set it / removed it
+  }
+  return out;
+}

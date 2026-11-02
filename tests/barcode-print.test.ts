@@ -104,3 +104,22 @@ test("scope 'food' leaves out tools; scope 'all' groups them by zone with their 
   assert.deepEqual(all.map(x => x.place), ["Mechanic Bay", "Pantry"]);
   assert.deepEqual(all[0].rows[0], { name: "Cordless drill", quantity: "1", bestBefore: "", detail: "Red Toolbox" });
 });
+
+test("stale edit form does not erase a barcode added after it was opened", async () => {
+  const { mergeAttributes } = await import("../src/lib/barcode.ts");
+  const opened = { size: "1kg" };
+  // Pantry linked a barcode while the form was open; the form saves its old copy.
+  assert.deepEqual(
+    mergeAttributes(opened, { size: "1kg" }, { size: "1kg", barcode: "5000159484695" }),
+    { size: "1kg", barcode: "5000159484695" });
+  // A field the form did change still wins; an untouched barcode survives.
+  assert.deepEqual(
+    mergeAttributes(opened, { size: "2kg" }, { size: "1kg", barcode: "123" }),
+    { size: "2kg", barcode: "123" });
+  // Deliberately removing a key in the form removes it.
+  assert.deepEqual(mergeAttributes({ a: 1, barcode: "1" }, { a: 1 }, { a: 1, barcode: "1" }), { a: 1 });
+  // Editing the barcode in the form wins over the stored one.
+  assert.deepEqual(mergeAttributes({ barcode: "1" }, { barcode: "2" }, { barcode: "1" }), { barcode: "2" });
+  // Nothing stored yet / undefined inputs.
+  assert.deepEqual(mergeAttributes(undefined, undefined, { barcode: "9" }), { barcode: "9" });
+});

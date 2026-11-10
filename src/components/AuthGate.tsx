@@ -92,6 +92,7 @@ export default function AuthGate({ children }: Props) {
               <h2 style={{ margin: "0 0 10px", fontSize: "20px" }}>Couldn't check your access</h2>
               <p style={{ margin: "0 0 20px", color: C.textMid, lineHeight: 1.6 }}>{access.error}</p>
               <button onClick={() => setAttempt(n => n + 1)} style={gateBtn}>Try again</button>{" "}
+              <a href="/prepared/offline" style={{ ...gateBtn, display: "inline-block", textDecoration: "none" }}>Open saved emergency plan</a>{" "}
             </>
           )}
           <button onClick={() => supabase.auth.signOut()} style={gateBtn}>Sign out</button>

@@ -24,6 +24,8 @@ import CapturedReviewQueue from "./components/CapturedReviewQueue";
 import PantryPage from "./components/PantryPage";
 import BackupPage from "./components/BackupPage";
 import PrintPage from "./components/PrintPage";
+import PreparedPage from "./components/PreparedPage";
+import PlanPage from "./components/PlanPage";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 //
@@ -35,6 +37,9 @@ import PrintPage from "./components/PrintPage";
 //   /zones                     Zones
 //   /collections               Kits & Collections
 //   /pantry                    Pantry — food stock by batch (phone-first)
+//   /prepared                  Prepared — how long would we last? (food, water, power, equipment)
+//   /prepared/plan             Emergency plan — shared, printable, cached for offline
+//   /prepared/offline          Saved plan, no sign-in or network needed (see main.tsx)
 //   /backup                    Export everything, spreadsheets, link to print
 //   /print                     Printable count sheet by storage place
 //
@@ -352,6 +357,7 @@ export default function App() {
                 { path: "/", label: "Dashboard", end: true },
                 { path: "/inventory", label: "Inventory", end: false },
                 { path: "/pantry", label: "Pantry", end: false },
+                { path: "/prepared", label: "Prepared", end: false },
                 { path: "/zones", label: "Zones", end: false },
                 { path: "/collections", label: "Kits & Collections", end: false },
               ].map((v) => (
@@ -417,6 +423,8 @@ export default function App() {
             <Route path="/zones" element={<ZonePage items={items} onItemClick={handleItemClick} />} />
             <Route path="/collections" element={<CollectionsPage items={items} />} />
             <Route path="/pantry" element={<PantryPage items={items} onItemsChanged={refreshItems} />} />
+            <Route path="/prepared" element={<PreparedPage items={items} onItemsChanged={refreshItems} />} />
+            <Route path="/prepared/plan" element={<PlanPage items={items} />} />
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/print" element={<PrintPage items={items} />} />
             <Route

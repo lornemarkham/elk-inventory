@@ -14,6 +14,11 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
+    // Signing in to approve an app (ChatGPT): remember the request so the app
+    // can come back to it after the emailed link (which only returns to "/").
+    if (window.location.pathname === "/oauth/consent") {
+      localStorage.setItem("elk.afterLogin", JSON.stringify({ to: window.location.pathname + window.location.search, at: Date.now() }));
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: { emailRedirectTo: window.location.origin },

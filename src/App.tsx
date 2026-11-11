@@ -21,6 +21,7 @@ import CommandBar from "./components/CommandBar";
 import CapturePage from "./components/CapturePage";
 import CapturedReviewQueue from "./components/CapturedReviewQueue";
 import PantryPage from "./components/PantryPage";
+import OAuthConsent from "./components/OAuthConsent";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 //
@@ -58,6 +59,16 @@ const navLinkStyle = (isActive: boolean): React.CSSProperties => ({
 
 export default function App() {
   const navigate = useNavigate();
+
+  // Back to an app-approval request after signing in by emailed link (see LoginPage).
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("elk.afterLogin") ?? "null");
+      localStorage.removeItem("elk.afterLogin");
+      if (saved && typeof saved.to === "string" && saved.to.startsWith("/oauth/consent") && Date.now() - saved.at < 10 * 60_000) navigate(saved.to, { replace: true });
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const location = useLocation();
   const modalState = location.state as { backgroundLocation?: string } | null;
 
@@ -412,6 +423,7 @@ export default function App() {
             <Route path="/items/:id" element={<InventoryPage items={items} onAdd={handleAdd} onItemClick={handleItemClick} />} />
             <Route path="/zones" element={<ZonePage items={items} onItemClick={handleItemClick} />} />
             <Route path="/collections" element={<CollectionsPage items={items} />} />
+            <Route path="/oauth/consent" element={<OAuthConsent />} />
             <Route path="/pantry" element={<PantryPage items={items} onItemsChanged={refreshItems} />} />
             <Route
               path="/capture"

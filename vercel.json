@@ -1,7 +1,24 @@
 {
   "rewrites": [
-    { "source": "/npi-list", "destination": "/npi-list/index.html" },
-    { "source": "/npi-list/(.*)", "destination": "/npi-list/index.html" },
-    { "source": "/((?!api/|@|.*\\..*).*)", "destination": "/index.html" }
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/api/mcp",
+      "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/npi-list",
+      "destination": "/npi-list/index.html"
+    },
+    {
+      "source": "/npi-list/(.*)",
+      "destination": "/npi-list/index.html"
+    },
+    {
+      "source": "/((?!api/|@|.*\\..*).*)",
+      "destination": "/index.html"
+    }
   ]
 }

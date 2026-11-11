@@ -30,7 +30,7 @@ ChatGPT ──OAuth 2.1 + PKCE──▶ Supabase Auth (the authorization server)
   arguments). Charlie must show you the change and repeat the call with the token after you say yes.
   ChatGPT also asks you to approve write tool calls itself. Honest limit: the token is visible to the model,
   so the guarantee is "a signed, exact, short-lived, per-change token plus ChatGPT's own prompt", not
-  "cryptographic proof the human clicked". There is deliberately **no delete-item tool**.
+  "cryptographic proof the human clicked". There is deliberately **no delete-item tool**; "gone" is `lifecycle_state` via `inventory_update_item`, with confirmation.
 - **No duplicates.** `inventory_add_item` refuses a similar existing name and points at the existing item.
   Pantry-tracked food is changed only through `pantry_receive` / `pantry_use` (so history stays right);
   untracked items get a count-guarded update (a concurrent change is never overwritten).
@@ -45,8 +45,11 @@ ChatGPT ──OAuth 2.1 + PKCE──▶ Supabase Auth (the authorization server)
 | `inventory_get_expiring` | read | pantry batches by best-before, with days left |
 | `inventory_get_shopping_list` | read | open (or recent) entries |
 | `inventory_get_history` | read | movements with who did them |
+| `inventory_list_categories` | read | counts by kind (tools / equipment / supplies), domain, category + subcategory; optional `location` ("garage") |
 | `inventory_add_item` | write | new item; food with `best_before` becomes a pantry batch |
 | `inventory_adjust_quantity` | write, confirm | `delta` or `set_to`; tracked food recorded as used / wasted / received |
+| `inventory_update_item` | write, confirm when retiring | name, category, brand, notes, tags, kind, condition, barcode, model, serial, purchase / best-before dates, unit, used-for, specs. Setting retired / consumed / lost / deprecated needs confirmation. Guarded on `updated_at` |
+| `inventory_move_item` | write | zone, shelf/bin text, container (a container implies its zone). Guarded on `updated_at` |
 | `inventory_add_to_shopping_list` | write | skips names already listed |
 | `inventory_update_shopping_item` | write, confirm on remove | `mark_done`, `mark_not_done`, `remove` |
 
@@ -95,7 +98,9 @@ Apps) if you want it dead immediately.
   (which also hosts another app's tables) — Supabase OAuth has no per-table scopes. Our endpoint only
   exposes the tools above, but a leaked ChatGPT token would carry your database rights until it expires
   (about an hour; refreshes can be revoked).
-- Untracked items (tools, equipment) have no movement history; only pantry-tracked food does.
+- Untracked items (tools, equipment) have no movement history; only pantry-tracked food does. Moves and detail edits
+  of untracked items are saved (with `updated_at`) but not logged as movements.
+- How other apps share this same data: `docs/integration-contract.md`.
 - Zones and containers come from the app's built-in lists (`src/data`); "garage" is a household alias
   for the workshop zones (see `ALIASES` in `api/_mcp-core.ts`). Tell Charlie if it's wrong.
 

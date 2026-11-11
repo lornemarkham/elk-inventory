@@ -21,6 +21,12 @@ const MAX_ROWS = 5_000;
 const CONFIRM_TTL_S = 300;
 const ITEM_CLASSES = ["tool", "material", "equipment", "project-asset", "installed-asset", "surplus"];
 const DOMAINS = ["workshop", "electronics", "fitness", "food-storage", "kitchen-preserving", "garden", "pool", "vehicle", "household", "project", "unknown"];
+const LIFECYCLE = ["available", "in-use", "reserved", "ordered", "needs-repair", "retired", "deprecated", "consumed", "lost", "sort-required", "incorrect-part", "surplus"];
+// Setting one of these takes the item out of use, so it needs the user's confirmation.
+const OUT_OF_USE = ["retired", "deprecated", "consumed", "lost"];
+// Detail fields kept in the attributes JSON (same keys the web app uses: barcode, purchasedOn, bestBefore, unit).
+// No new columns, so these work on today's database.
+const ATTR_FIELDS: Record<string, string> = { barcode: "barcode", model: "model", serial_number: "serialNumber", purchased_on: "purchasedOn", best_before: "bestBefore", unit: "unit", used_for: "usedFor" };
 
 export interface Ctx {
   supabaseUrl: string;
@@ -145,10 +151,23 @@ function shape(row: Row) {
     notes: row.notes ? clip(row.notes, 300) : undefined,
     pantry_tracked: a.pantryTracked === true ? true : undefined,
     low_stock_at: a.lowStockAt ?? undefined,
+    barcode: a.barcode || undefined,
+    model: a.model || undefined,
+    serial_number: a.serialNumber || undefined,
+    purchased_on: a.purchasedOn || undefined,
+    best_before: a.bestBefore || undefined,
+    used_for: a.usedFor || undefined,
+    specs: specsOf(a),
+    has_photo: row.photo_path ? true : undefined,
   };
 }
 
-const ITEM_COLS = "id,name,item_class,lifecycle_state,domain,current_zone,location_detail,container_id,collection_id,project,tags,quantity,notes,brand,category,subcategory,attributes,updated_at";
+function specsOf(a: Row) {
+  const s = Object.entries(a).filter(([k]) => k.startsWith("spec_")).map(([k, v]) => [k.slice(5), v]);
+  return s.length ? Object.fromEntries(s) : undefined;
+}
+
+const ITEM_COLS = "id,name,item_class,lifecycle_state,domain,current_zone,location_detail,container_id,collection_id,project,tags,quantity,notes,brand,category,subcategory,attributes,photo_path,updated_at";
 
 async function allItems(ctx: Ctx): Promise<Row[]> {
   const r = await pg(ctx, "GET", `inventory_items?select=${ITEM_COLS}&order=name.asc&limit=${MAX_ROWS}`);
@@ -235,7 +254,7 @@ const TOOLS: Tool[] = [
     name: "inventory_search",
     description: "Search the live ELK Inventory (tools, equipment, supplies/materials, pantry food). Use for \"what do I have in my garage?\", \"do I have X?\", \"how many Y?\". Combine any filters. Every filter is optional; with none it lists everything (up to limit). The reply says which places a location word matched.",
     inputSchema: { type: "object", properties: {
-      query: str("Words to look for in name, brand, category, notes, tags and location. All words must match."),
+      query: str("Words to look for in name, brand, category, notes, tags, location, barcode, model, serial and what it's used for. All words must match."),
       location: str("A place: a zone (Mechanic Bay, ELK Labs, Center Island, Garage Gym / Strength Zone, Pool Shed, Truck Kit, Garden, Storage Room Pantry) or a word like \"garage\", \"pantry\", \"shed\"; also matches container and shelf text."),
       category: str("Category or subcategory, e.g. \"batteries\", \"canned\"."),
       item_class: str("tool | material (supplies/consumables) | equipment | project-asset | installed-asset | surplus", { enum: ITEM_CLASSES }),
@@ -259,7 +278,8 @@ const TOOLS: Tool[] = [
         let score = 0;
         if (words.length) {
           const name = norm(row.name);
-          const hay = norm(`${row.name} ${row.brand ?? ""} ${row.category ?? ""} ${row.subcategory ?? ""} ${row.notes ?? ""} ${(row.tags ?? []).join(" ")} ${row.location_detail ?? ""} ${containerName(row.container_id) ?? ""} ${zoneName(row.current_zone)}`);
+          const at = row.attributes ?? {};
+          const hay = norm(`${row.name} ${row.brand ?? ""} ${row.category ?? ""} ${row.subcategory ?? ""} ${row.notes ?? ""} ${(row.tags ?? []).join(" ")} ${row.location_detail ?? ""} ${containerName(row.container_id) ?? ""} ${zoneName(row.current_zone)} ${at.barcode ?? ""} ${at.model ?? ""} ${at.serialNumber ?? ""} ${at.usedFor ?? ""}`);
           if (!words.every((w) => hay.includes(w))) continue;
           score = words.filter((w) => name.includes(w)).length;
         }
@@ -315,6 +335,36 @@ const TOOLS: Tool[] = [
         containers: CONTAINERS.map((c) => ({ id: c.id, name: c.name, zone: zoneName(c.zoneId), items: byBox.get(c.id) ?? 0 })),
         shelf_and_bin_details: [...detail].map(([where, items]) => ({ where, items })).slice(0, 100),
         place_words: Object.fromEntries(Object.entries(ALIASES).map(([k, v]) => [k, v.map(zoneName)])),
+      };
+    },
+  },
+  {
+    name: "inventory_list_categories",
+    description: "Overview of what kinds of things are in the inventory: counts by kind (tools, equipment, supplies/materials …), by domain, and by category with subcategories. Optionally for one place (e.g. \"garage\"). Use it to answer \"what equipment do I have?\" style questions before drilling in with inventory_search.",
+    inputSchema: { type: "object", properties: { location: str("Limit to a place, e.g. \"garage\"."), item_class: str("Limit to one kind.", { enum: ITEM_CLASSES }) }, additionalProperties: false },
+    annotations: READ,
+    async run(ctx, _u, a) {
+      const place = a.location ? resolvePlace(String(a.location)) : null;
+      const rows = (await allItems(ctx)).filter((r) => (!place || matchesPlace(r, place)) && (!a.item_class || r.item_class === a.item_class));
+      const count = (key: (r: Row) => string) => {
+        const m = new Map<string, number>();
+        for (const r of rows) m.set(key(r), (m.get(key(r)) ?? 0) + 1);
+        return Object.fromEntries([...m].sort((x, y) => y[1] - x[1]));
+      };
+      const cats = new Map<string, { items: number; subcategories: Map<string, number> }>();
+      for (const r of rows) {
+        const c = r.category || "(none)";
+        const e = cats.get(c) ?? { items: 0, subcategories: new Map() };
+        e.items++;
+        if (r.subcategory) e.subcategories.set(r.subcategory, (e.subcategories.get(r.subcategory) ?? 0) + 1);
+        cats.set(c, e);
+      }
+      return {
+        matched_locations: place ? { asked: a.location, zones: place.matched.length ? place.matched : "no zone matched; searched shelf/container text only" } : undefined,
+        total_items: rows.length,
+        by_kind: count((r) => r.item_class ?? "unknown"),
+        by_domain: count((r) => r.domain ?? "unknown"),
+        categories: [...cats].sort((x, y) => y[1].items - x[1].items).map(([category, e]) => ({ category, items: e.items, subcategories: e.subcategories.size ? Object.fromEntries(e.subcategories) : undefined })),
       };
     },
   },
@@ -480,6 +530,118 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "inventory_update_item",
+    description: "Change an existing item's details: name, category, brand, notes, tags, kind, domain, condition (lifecycle_state), barcode, model, serial number, purchase date, best-before, unit, what it's used for, and specifications. Not quantity (use inventory_adjust_quantity) and not location (use inventory_move_item). Only the fields you give change. Marking something retired / consumed / lost needs user confirmation.",
+    inputSchema: { type: "object", properties: {
+      item_id: str("The item's id (from inventory_search)."),
+      name: str("New name.", { maxLength: 120 }),
+      category: str("Category."), subcategory: str("Subcategory."), brand: str("Brand."),
+      notes: str("Replaces the notes.", { maxLength: 1000 }),
+      tags: { type: "array", items: { type: "string", maxLength: 40 }, maxItems: 20, description: "Replaces the tags." },
+      item_class: str("Kind.", { enum: ITEM_CLASSES }),
+      domain: str("Domain.", { enum: DOMAINS }),
+      lifecycle_state: str("Condition / status.", { enum: LIFECYCLE }),
+      barcode: str("UPC/EAN or other product code.", { maxLength: 64 }),
+      model: str("Model number.", { maxLength: 80 }),
+      serial_number: str("Serial number.", { maxLength: 80 }),
+      purchased_on: str("YYYY-MM-DD."),
+      best_before: str("YYYY-MM-DD (for untracked items; pantry batches keep their own dates)."),
+      unit: str("Unit the quantity counts, e.g. \"cans\", \"L\", \"boxes\".", { maxLength: 20 }),
+      used_for: str("What it serves, e.g. \"oil changes on the F-150\" for a filter.", { maxLength: 200 }),
+      specs: { type: "object", additionalProperties: { type: ["string", "number", "boolean"] }, description: "Specifications to set, e.g. {\"voltage\": \"18V\", \"capacity_ah\": 4}. Merged with existing specs; an empty string removes one." },
+      confirmation_token: str("From a previous confirmation_required reply."),
+    }, required: ["item_id"], additionalProperties: false },
+    annotations: WRITE,
+    async run(ctx, userId, a) {
+      const found = await findItem(ctx, { item_id: a.item_id });
+      if ("candidates" in found) throw new ToolError("No item with that id. Use inventory_search to find the right item_id.");
+      const row = found.row;
+      const patch: Row = {};
+      if (a.name !== undefined) {
+        const n = String(a.name).replace(/\s+/g, " ").trim();
+        if (!n || n.length > 120) throw new ToolError("name must be 1 to 120 characters.");
+        patch.name = n;
+      }
+      for (const k of ["category", "subcategory", "brand"]) if (a[k] !== undefined) patch[k] = String(a[k]).trim() || null;
+      if (a.notes !== undefined) patch.notes = clip(a.notes, 1000);
+      if (a.tags !== undefined) {
+        if (!Array.isArray(a.tags) || a.tags.length > 20) throw new ToolError("tags must be a list of up to 20 words.");
+        patch.tags = [...new Set(a.tags.map((x) => String(x).trim()).filter(Boolean))];
+      }
+      if (a.item_class !== undefined && !ITEM_CLASSES.includes(String(a.item_class))) throw new ToolError(`item_class must be one of ${ITEM_CLASSES.join(", ")}.`);
+      if (a.domain !== undefined && !DOMAINS.includes(String(a.domain))) throw new ToolError(`domain must be one of ${DOMAINS.join(", ")}.`);
+      if (a.lifecycle_state !== undefined && !LIFECYCLE.includes(String(a.lifecycle_state))) throw new ToolError(`lifecycle_state must be one of ${LIFECYCLE.join(", ")}.`);
+      for (const k of ["item_class", "domain", "lifecycle_state"]) if (a[k] !== undefined) patch[k] = a[k];
+      for (const k of ["purchased_on", "best_before"]) if (a[k] && !/^\d{4}-\d{2}-\d{2}$/.test(String(a[k]))) throw new ToolError(`${k} must be YYYY-MM-DD.`);
+
+      const attrs: Row = { ...(row.attributes ?? {}) };
+      let attrsChanged = false;
+      for (const [arg, key] of Object.entries(ATTR_FIELDS)) {
+        if (a[arg] === undefined) continue;
+        const v = String(a[arg]).trim();
+        if (v) attrs[key] = v; else delete attrs[key];
+        attrsChanged = true;
+      }
+      if (a.specs !== undefined) {
+        if (typeof a.specs !== "object" || a.specs === null || Array.isArray(a.specs)) throw new ToolError("specs must be an object of name → value.");
+        const entries = Object.entries(a.specs as Json);
+        if (entries.length > 30) throw new ToolError("Give at most 30 specs at a time.");
+        for (const [k, v] of entries) {
+          const key = `spec_${norm(k).replace(/ /g, "_").slice(0, 40)}`;
+          if (key === "spec_") continue;
+          if (v === "" || v === null) delete attrs[key];
+          else if (["string", "number", "boolean"].includes(typeof v)) attrs[key] = typeof v === "string" ? clip(v, 120) : v;
+        }
+        attrsChanged = true;
+      }
+      if (attrsChanged) patch.attributes = attrs;
+      if (!Object.keys(patch).length) return { status: "no_change", item: shape(row) };
+
+      const leaving = patch.lifecycle_state && OUT_OF_USE.includes(patch.lifecycle_state) && row.lifecycle_state !== patch.lifecycle_state;
+      if (leaving && !(await tokenValid(ctx, userId, "update_item", a))) {
+        return needConfirmation(ctx, userId, "update_item", a, { item: row.name, lifecycle_state: { from: row.lifecycle_state, to: patch.lifecycle_state }, why_confirmation: "this takes the item out of use" });
+      }
+      const r = await guardedPatch(ctx, row, patch);
+      return { status: "updated", changed: Object.keys(patch), item: shape(r) };
+    },
+  },
+  {
+    name: "inventory_move_item",
+    description: "Record that an item now lives somewhere else: a zone, a shelf/bin/drawer, and/or a container. Use inventory_list_locations for valid zones and containers. Pantry-tracked food: this moves the item's home; individual batch locations are kept as they are.",
+    inputSchema: { type: "object", properties: {
+      item_id: str("The item's id (from inventory_search)."),
+      zone: str("Zone id or name, e.g. \"mechanic-bay\" or \"Pool Shed\"."),
+      location_detail: str("Shelf, bin or drawer, free text. An empty string clears it.", { maxLength: 200 }),
+      container: str("Container id or name; \"none\" takes it out of its container."),
+    }, required: ["item_id"], additionalProperties: false },
+    annotations: WRITE,
+    async run(ctx, _u, a) {
+      if (a.zone === undefined && a.location_detail === undefined && a.container === undefined) throw new ToolError("Give a zone, location_detail and/or container.");
+      const found = await findItem(ctx, { item_id: a.item_id });
+      if ("candidates" in found) throw new ToolError("No item with that id. Use inventory_search to find the right item_id.");
+      const row = found.row;
+      const patch: Row = {};
+      if (a.zone !== undefined) {
+        const zone = ZONES.find((z) => norm(z.id) === norm(a.zone) || norm(z.name) === norm(a.zone));
+        if (!zone) throw new ToolError(`Unknown zone "${a.zone}". Valid: ${ZONES.map((z) => z.name).join(", ")}.`);
+        patch.current_zone = zone.id;
+      }
+      if (a.location_detail !== undefined) patch.location_detail = clip(String(a.location_detail).trim(), 200);
+      if (a.container !== undefined) {
+        if (["none", ""].includes(norm(a.container))) patch.container_id = null;
+        else {
+          const box = CONTAINERS.find((c) => norm(c.id) === norm(a.container) || norm(c.name) === norm(a.container));
+          if (!box) throw new ToolError(`Unknown container "${a.container}". Valid: ${CONTAINERS.map((c) => c.name).join(", ")}, or "none".`);
+          patch.container_id = box.id;
+          if (patch.current_zone === undefined && box.zoneId !== row.current_zone) patch.current_zone = box.zoneId;
+        }
+      }
+      const from = { zone: zoneName(row.current_zone), detail: row.location_detail || undefined, container: containerName(row.container_id) ?? undefined };
+      const r = await guardedPatch(ctx, row, patch);
+      return { status: "moved", from, to: shape(r).location, item: shape(r) };
+    },
+  },
+  {
     name: "inventory_add_to_shopping_list",
     description: "Add things to the family shopping list. Already-listed names are skipped, not duplicated.",
     inputSchema: { type: "object", properties: { names: { type: "array", items: { type: "string", maxLength: 200 }, minItems: 1, maxItems: 20, description: "What to buy." }, note: str("Why, e.g. \"for lasagne\".", { maxLength: 500 }) }, required: ["names"], additionalProperties: false },
@@ -537,11 +699,21 @@ async function findItem(ctx: Ctx, a: Json): Promise<{ row: Row } | { candidates:
   return { candidates: rows.slice(0, 10).map(shape) } as never;
 }
 
+// Guarded on the row's updated_at, so an edit made elsewhere in the meantime (web app, Wrench, Kitchen) is never overwritten.
+async function guardedPatch(ctx: Ctx, row: Row, patch: Row): Promise<Row> {
+  const guard = row.updated_at ? `updated_at=eq.${encodeURIComponent(row.updated_at)}` : "updated_at=is.null";
+  const r = await pg(ctx, "PATCH", `inventory_items?id=eq.${encodeURIComponent(row.id)}&${guard}&select=${ITEM_COLS}`,
+    { ...patch, updated_at: new Date((ctx.now ?? Date.now)()).toISOString() }, { Prefer: "return=representation" });
+  if (r.status >= 300) fail(r, "Saving the change");
+  if (!Array.isArray(r.body) || r.body.length === 0) throw new ToolError(`"${row.name}" was changed by someone else just now. Look it up again and retry.`);
+  return r.body[0];
+}
+
 // ── JSON-RPC (MCP Streamable HTTP, stateless) ───────────────────────────────────
 
 export const SERVER_INSTRUCTIONS =
   "ELK Inventory is the household's live inventory (workshop tools and equipment, supplies, pantry food) with a family shopping list. " +
-  "Always search the inventory rather than answering from memory. Report what a location word matched (e.g. \"garage\" = Mechanic Bay, ELK Labs, Center Island, Garage Gym). " +
+  "Always search the inventory rather than answering from memory. For \"what equipment / tools are in the garage?\" use inventory_search with location \"garage\" (and item_class if asked), or inventory_list_categories for an overview.Report what a location word matched (e.g. \"garage\" = Mechanic Bay, ELK Labs, Center Island, Garage Gym). " +
   "Quantities are the database's truth; say so if a tool reports a feature as not enabled. " +
   "Any change that returns confirmation_required has NOT happened: describe it to the user and ask before repeating the call with the token. Never confirm for the user.";
 
@@ -562,7 +734,7 @@ export async function handleRpc(ctx: Ctx, userId: string, msg: any): Promise<Jso
       return reply({
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "elk-inventory", version: "1.0.0" },
+        serverInfo: { name: "elk-inventory", version: "1.1.0" },
         instructions: SERVER_INSTRUCTIONS,
       });
     }

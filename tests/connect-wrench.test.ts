@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildHandoffUrl, encodeSessionFragment, parseReturnUrl } from "../src/lib/connectWrench.ts";
 
-const S = { access_token: "a.b.c", refresh_token: "r-1", expires_at: 1790000000 };
+const S = { access_token: "a.b.c", expires_at: 1790000000 };
 
 test("allows the Wrench origin, any path", () => {
   assert.equal(parseReturnUrl("https://elk-wrench.vercel.app/")?.href, "https://elk-wrench.vercel.app/");
@@ -24,10 +24,10 @@ test("refuses everything else", () => {
   ]) assert.equal(parseReturnUrl(bad as string), null, String(bad));
 });
 
-test("fragment is base64url JSON of exactly the three fields", () => {
-  const f = encodeSessionFragment({ ...S, extra: "x" } as typeof S);
+test("fragment is base64url JSON of the three fields, and never carries the refresh token", () => {
+  const f = encodeSessionFragment({ ...S, refresh_token: "r-secret", extra: "x" } as typeof S);
   assert.match(f, /^[A-Za-z0-9_-]+$/);
-  assert.deepEqual(JSON.parse(Buffer.from(f, "base64url").toString()), S);
+  assert.deepEqual(JSON.parse(Buffer.from(f, "base64url").toString()), { access_token: "a.b.c", refresh_token: "", expires_at: 1790000000 });
 });
 
 test("handoff URL uses the fragment only and replaces any incoming hash", () => {

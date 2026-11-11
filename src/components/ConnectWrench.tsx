@@ -16,12 +16,13 @@ export default function ConnectWrench() {
   async function connect() {
     if (!returnUrl) return;
     setBusy(true);
-    const { data, error } = await supabase.auth.getSession();
+    let { data, error } = await supabase.auth.getSession();
+    // Wrench only gets the access token (src/lib/connectWrench.ts), so give it a fresh one: close to a full hour.
+    if (!error && data.session && (data.session.expires_at ?? 0) * 1000 < Date.now() + 30 * 60_000) ({ data, error } = await supabase.auth.refreshSession());
     const s = data.session;
     if (error || !s) { setError(error?.message ?? "You're not signed in."); setBusy(false); return; }
     window.location.assign(buildHandoffUrl(returnUrl, {
       access_token: s.access_token,
-      refresh_token: s.refresh_token,
       expires_at: s.expires_at ?? Math.floor(Date.now() / 1000) + s.expires_in,
     }));
   }
@@ -44,6 +45,7 @@ export default function ConnectWrench() {
             It will read items, add shopping-list drafts, and record supplies you confirm using.
             Wrench never changes quantities on its own.
           </p>
+          <p style={{ color: C.textMid, fontSize: 14 }}>The connection lasts about an hour; after that Wrench asks you to connect again.</p>
           <p style={{ color: C.textMid, fontSize: 14 }}>You'll be sent back to <strong>{returnUrl.host}</strong>.</p>
           {error && <p style={{ color: C.red }}>{error}</p>}
           <div style={{ display: "flex", gap: 12, marginTop: 24 }}>

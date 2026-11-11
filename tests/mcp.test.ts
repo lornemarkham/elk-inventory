@@ -269,3 +269,79 @@ test("unexpected failures reveal nothing internal", async () => {
   const r = await call(boom, "inventory_search", {});
   assert.equal(r.isError, true); assert.ok(!/postgres|pw@/.test(r.out));
 });
+
+// ── M743: categories, item details, moves ──
+test("tools/list also has categories, update and move (the brief's full read/write set)", () => {
+  const names = toolList().map((t) => t.name);
+  for (const n of ["inventory_list_categories", "inventory_update_item", "inventory_move_item", "inventory_get_history", "inventory_update_shopping_item"]) assert.ok(names.includes(n), n);
+});
+
+test("categories overview for the garage counts equipment and tools from the live rows", async () => {
+  const { out } = await call(world().ctx(), "inventory_list_categories", { location: "garage" });
+  for (const z of ["Mechanic Bay", "ELK Labs", "Garage Gym / Strength Zone"]) assert.ok(out.matched_locations.zones.includes(z), z);
+  assert.equal(out.by_kind.equipment, 2); assert.equal(out.by_kind.tool, 1); assert.equal(out.by_kind.material, 1);
+  assert.ok(out.categories.some((c: any) => c.category === "power-tools" && c.items === 1));
+  const eq = await call(world().ctx(), "inventory_list_categories", { location: "garage", item_class: "equipment" });
+  assert.equal(eq.out.total_items, 2);
+});
+
+test("update_item sets details in attributes (barcode, specs …) and they come back on search", async () => {
+  const w = world();
+  const { out } = await call(w.ctx(), "inventory_update_item", { item_id: "t-drill", barcode: "0123456789012", model: "PBLDD01", specs: { Voltage: "18V", "chuck mm": 13 }, used_for: "deck build" });
+  assert.equal(out.status, "updated");
+  const row = w.t.inventory_items.find((i) => i.id === "t-drill")!;
+  assert.equal(row.attributes.barcode, "0123456789012"); assert.equal(row.attributes.spec_voltage, "18V"); assert.equal(row.attributes.spec_chuck_mm, 13);
+  assert.equal(row.quantity, 1); assert.equal(row.current_zone, "mechanic-bay"); // quantity and place untouched
+  const s = await call(w.ctx(), "inventory_search", { query: "0123456789012" });
+  assert.equal(s.out.items[0].id, "t-drill"); assert.equal(s.out.items[0].specs.voltage, "18V");
+  const bad = await call(w.ctx(), "inventory_update_item", { item_id: "t-drill", purchased_on: "last week" });
+  assert.ok(bad.isError);
+});
+
+test("update_item: retiring/losing an item needs confirmation; nothing changes first time", async () => {
+  const w = world();
+  const pre = await call(w.ctx(), "inventory_update_item", { item_id: "t-saw", lifecycle_state: "lost" });
+  assert.equal(pre.out.status, "confirmation_required");
+  assert.equal(w.t.inventory_items.find((i) => i.id === "t-saw")!.lifecycle_state, "available");
+  const forged = await call(w.ctx(), "inventory_update_item", { item_id: "t-drill", lifecycle_state: "lost", confirmation_token: pre.out.confirmation_token });
+  assert.equal(forged.out.status, "confirmation_required"); // token is for the saw, not the drill
+  const ok = await call(w.ctx(), "inventory_update_item", { item_id: "t-saw", lifecycle_state: "lost", confirmation_token: pre.out.confirmation_token });
+  assert.equal(ok.out.status, "updated"); assert.equal(w.t.inventory_items.find((i) => i.id === "t-saw")!.lifecycle_state, "lost");
+  const fix = await call(w.ctx(), "inventory_update_item", { item_id: "t-saw", lifecycle_state: "needs-repair" });
+  assert.equal(fix.out.status, "updated");
+});
+
+test("update/move never overwrite a change made elsewhere in the meantime", async () => {
+  const w = world();
+  w.t.inventory_items.find((i) => i.id === "t-drill")!.updated_at = "2026-11-10T11:00:00+00:00";
+  const realFetch = w.ctx().fetchImpl!;
+  // Someone edits the drill between our read and our write.
+  const racing = (async (url: string, init: any) => {
+    if (init.method === "PATCH") w.t.inventory_items.find((i) => i.id === "t-drill")!.updated_at = "2026-11-10T11:30:00+00:00";
+    return realFetch(url, init);
+  }) as unknown as typeof fetch;
+  const r = await call(w.ctx(LORNE, { fetchImpl: racing }), "inventory_move_item", { item_id: "t-drill", zone: "Pool Shed" });
+  assert.ok(r.isError); assert.match(r.out, /changed by someone else/);
+  assert.equal(w.t.inventory_items.find((i) => i.id === "t-drill")!.current_zone, "mechanic-bay");
+});
+
+test("move_item: zone, shelf and container; container implies its zone; unknown places refused", async () => {
+  const w = world();
+  const m = await call(w.ctx(), "inventory_move_item", { item_id: "t-saw", zone: "mechanic-bay", location_detail: "Back wall" });
+  assert.equal(m.out.status, "moved"); assert.equal(m.out.from.zone, "Pool Shed"); assert.equal(m.out.to.zone, "Mechanic Bay");
+  const box = await call(w.ctx(), "inventory_move_item", { item_id: "t-drill", container: "red-toolbox" });
+  const red = w.t.inventory_items.find((i) => i.id === "t-drill")!;
+  assert.equal(box.out.status, "moved"); assert.equal(red.container_id, "red-toolbox");
+  const out = await call(w.ctx(), "inventory_move_item", { item_id: "t-drill", container: "none" });
+  assert.equal(out.out.status, "moved"); assert.equal(red.container_id, null);
+  assert.ok((await call(w.ctx(), "inventory_move_item", { item_id: "t-drill", zone: "Narnia" })).isError);
+  assert.ok((await call(w.ctx(), "inventory_move_item", { item_id: "t-drill" })).isError);
+});
+
+test("a stranger can't update or move anything (the database refuses, nothing changes)", async () => {
+  const w = world();
+  const u = await call(w.ctx(STRANGER), "inventory_update_item", { item_id: "t-drill", name: "Mine now" }, "u-stranger");
+  const m = await call(w.ctx(STRANGER), "inventory_move_item", { item_id: "t-drill", zone: "Pool Shed" }, "u-stranger");
+  assert.ok(u.isError && m.isError);
+  assert.equal(w.t.inventory_items.find((i) => i.id === "t-drill")!.name, "Ryobi Drill");
+});

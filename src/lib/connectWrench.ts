@@ -21,14 +21,21 @@ export function parseReturnUrl(raw: string | null | undefined, dev = false): URL
   return url;
 }
 
+// Only the short-lived access token crosses over, never the refresh token.
+// Supabase rotates refresh tokens and treats a second use of an old one as
+// theft, revoking the whole session: if Wrench and this app both refreshed the
+// same session, whichever went second would sign BOTH out. Wrench therefore
+// gets about an hour, then shows "Connect again" (its refresh with "" fails
+// cleanly). refresh_token stays in the payload, empty, because Wrench's parser
+// requires the field. A long-lived Wrench link should be its own OAuth grant
+// (Supabase OAuth server, docs/chatgpt-mcp.md), not a share of this session.
 export interface HandoffSession {
   access_token: string;
-  refresh_token: string;
   expires_at: number;
 }
 
 export function encodeSessionFragment(s: HandoffSession): string {
-  const json = JSON.stringify({ access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at });
+  const json = JSON.stringify({ access_token: s.access_token, refresh_token: "", expires_at: s.expires_at });
   const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

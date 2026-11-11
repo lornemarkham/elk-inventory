@@ -22,6 +22,7 @@ import CapturePage from "./components/CapturePage";
 import CapturedReviewQueue from "./components/CapturedReviewQueue";
 import PantryPage from "./components/PantryPage";
 import OAuthConsent from "./components/OAuthConsent";
+import ConnectWrench from "./components/ConnectWrench";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 //
@@ -65,7 +66,7 @@ export default function App() {
     try {
       const saved = JSON.parse(localStorage.getItem("elk.afterLogin") ?? "null");
       localStorage.removeItem("elk.afterLogin");
-      if (saved && typeof saved.to === "string" && saved.to.startsWith("/oauth/consent") && Date.now() - saved.at < 10 * 60_000) navigate(saved.to, { replace: true });
+      if (saved && typeof saved.to === "string" && (saved.to.startsWith("/oauth/consent") || saved.to.startsWith("/connect-wrench")) && Date.now() - saved.at < 10 * 60_000) navigate(saved.to, { replace: true });
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -424,6 +425,7 @@ export default function App() {
             <Route path="/zones" element={<ZonePage items={items} onItemClick={handleItemClick} />} />
             <Route path="/collections" element={<CollectionsPage items={items} />} />
             <Route path="/oauth/consent" element={<OAuthConsent />} />
+            <Route path="/connect-wrench" element={<ConnectWrench />} />
             <Route path="/pantry" element={<PantryPage items={items} onItemsChanged={refreshItems} />} />
             <Route
               path="/capture"

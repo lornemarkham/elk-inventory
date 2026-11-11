@@ -345,3 +345,22 @@ test("a stranger can't update or move anything (the database refuses, nothing ch
   assert.ok(u.isError && m.isError);
   assert.equal(w.t.inventory_items.find((i) => i.id === "t-drill")!.name, "Ryobi Drill");
 });
+
+test("a confirmed change retried with the same token does not run twice", async () => {
+  const w = world();
+  const screws = w.t.inventory_items.find((i) => i.id === "m-screws")!;
+  // A big increase: replaying it would still be "significant" and, before M743, still match its token.
+  const pre = (await call(w.ctx(), "inventory_adjust_quantity", { item_id: "m-screws", delta: 150 })).out;
+  assert.equal(pre.status, "confirmation_required");
+  const args = { item_id: "m-screws", delta: 150, confirmation_token: pre.confirmation_token };
+  assert.equal((await call(w.ctx(), "inventory_adjust_quantity", args)).out.status, "adjusted");
+  assert.equal(screws.quantity, 250);
+  const retry = (await call(w.ctx(), "inventory_adjust_quantity", args)).out;
+  assert.equal(retry.status, "confirmation_required"); assert.equal(screws.quantity, 250, "retry changed nothing");
+
+  const add = { name: "Zip Ties", quantity: 200, allow_duplicate: true };
+  const p2 = (await call(w.ctx(), "inventory_add_item", add)).out;
+  assert.equal((await call(w.ctx(), "inventory_add_item", { ...add, confirmation_token: p2.confirmation_token })).out.status, "added");
+  assert.equal((await call(w.ctx(), "inventory_add_item", { ...add, confirmation_token: p2.confirmation_token })).out.status, "confirmation_required");
+  assert.equal(w.t.inventory_items.filter((i) => i.name === "Zip Ties").length, 1);
+});

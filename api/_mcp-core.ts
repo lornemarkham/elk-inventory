@@ -199,20 +199,22 @@ const enc = new TextEncoder();
 const b64u = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const unb64u = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 async function hmacKey(secret: string) { return crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]); }
-async function fingerprint(op: string, args: Json) {
+// `state` is what the change is about to act on (e.g. the current count), so a confirmed
+// change that is retried after it already happened no longer matches its token.
+async function fingerprint(op: string, args: Json, state: unknown) {
   const { confirmation_token: _t, ...rest } = args; void _t;
-  const canon = JSON.stringify(Object.keys(rest).sort().map((k) => [k, rest[k]]));
+  const canon = JSON.stringify([Object.keys(rest).sort().map((k) => [k, rest[k]]), state ?? null]);
   return b64u(await crypto.subtle.digest("SHA-256", enc.encode(`${op}|${canon}`)));
 }
 
-async function issueToken(ctx: Ctx, userId: string, op: string, args: Json): Promise<string> {
+async function issueToken(ctx: Ctx, userId: string, op: string, args: Json, state: unknown): Promise<string> {
   if (!ctx.confirmSecret) throw new ToolError("This change needs confirmation, but confirmation isn't configured on the server (MCP_CONFIRM_SECRET), so it was not made.");
-  const payload = b64u(enc.encode(JSON.stringify({ u: userId, f: await fingerprint(op, args), e: Math.floor((ctx.now ?? Date.now)() / 1000) + CONFIRM_TTL_S })));
+  const payload = b64u(enc.encode(JSON.stringify({ u: userId, f: await fingerprint(op, args, state), e: Math.floor((ctx.now ?? Date.now)() / 1000) + CONFIRM_TTL_S })));
   const sig = b64u(await crypto.subtle.sign("HMAC", await hmacKey(ctx.confirmSecret), enc.encode(payload)));
   return `${payload}.${sig}`;
 }
 
-async function tokenValid(ctx: Ctx, userId: string, op: string, args: Json): Promise<boolean> {
+async function tokenValid(ctx: Ctx, userId: string, op: string, args: Json, state: unknown): Promise<boolean> {
   const tok = args.confirmation_token;
   if (typeof tok !== "string" || !ctx.confirmSecret) return false;
   const [payload, sig] = tok.split(".");
@@ -220,15 +222,15 @@ async function tokenValid(ctx: Ctx, userId: string, op: string, args: Json): Pro
   try {
     if (!(await crypto.subtle.verify("HMAC", await hmacKey(ctx.confirmSecret), unb64u(sig), enc.encode(payload)))) return false;
     const p = JSON.parse(new TextDecoder().decode(unb64u(payload)));
-    return p.u === userId && p.f === (await fingerprint(op, args)) && p.e >= Math.floor((ctx.now ?? Date.now)() / 1000);
+    return p.u === userId && p.f === (await fingerprint(op, args, state)) && p.e >= Math.floor((ctx.now ?? Date.now)() / 1000);
   } catch { return false; }
 }
 
-async function needConfirmation(ctx: Ctx, userId: string, op: string, args: Json, preview: Json) {
+async function needConfirmation(ctx: Ctx, userId: string, op: string, args: Json, state: unknown, preview: Json) {
   return {
     status: "confirmation_required",
     preview,
-    confirmation_token: await issueToken(ctx, userId, op, args),
+    confirmation_token: await issueToken(ctx, userId, op, args, state),
     expires_in_seconds: CONFIRM_TTL_S,
     instruction: "NOT DONE YET. Tell the user exactly what will change and ask them to confirm. Only after they say yes, call this tool again with the same arguments plus this confirmation_token. Never confirm on the user's behalf.",
   };
@@ -457,8 +459,10 @@ const TOOLS: Tool[] = [
         const dupes = (await allItems(ctx)).filter((r) => norm(r.name) === key || (key.length > 4 && (norm(r.name).includes(key) || key.includes(norm(r.name)) && norm(r.name).length > 4)));
         if (dupes.length) return { status: "possible_duplicate", message: "Something similar is already in the inventory, so nothing was added. To change its count use inventory_adjust_quantity; to add it anyway, ask the user and repeat with allow_duplicate: true.", existing: dupes.slice(0, 5).map(shape) };
       }
-      if (qty > 50 && !(await tokenValid(ctx, userId, "add_item", a))) {
-        return needConfirmation(ctx, userId, "add_item", a, { add: name, quantity: qty, zone: zone?.name ?? "Unknown" });
+      // How many items with this name already exist: a retried confirmed add doesn't match once the first one landed.
+      const sameName = qty > 50 ? (await allItems(ctx)).filter((r) => norm(r.name) === norm(name)).length : 0;
+      if (qty > 50 && !(await tokenValid(ctx, userId, "add_item", a, sameName))) {
+        return needConfirmation(ctx, userId, "add_item", a, sameName, { add: name, quantity: qty, zone: zone?.name ?? "Unknown" });
       }
 
       const id = `mcp-${crypto.randomUUID().slice(0, 8)}`;
@@ -506,8 +510,8 @@ const TOOLS: Tool[] = [
       if (after === before) return { status: "no_change", item: shape(row) };
       const change = after - before;
       const significant = after === 0 || Math.abs(change) > Math.max(10, before * 0.5) || a.set_to !== undefined && Math.abs(change) > 5;
-      if (significant && !(await tokenValid(ctx, userId, "adjust_quantity", a))) {
-        return needConfirmation(ctx, userId, "adjust_quantity", a, { item: row.name, from: before, to: after, change, why_confirmation: after === 0 ? "this empties the item" : "this is a large change" });
+      if (significant && !(await tokenValid(ctx, userId, "adjust_quantity", a, [before, row.updated_at]))) {
+        return needConfirmation(ctx, userId, "adjust_quantity", a, [before, row.updated_at], { item: row.name, from: before, to: after, change, why_confirmation: after === 0 ? "this empties the item" : "this is a large change" });
       }
 
       const tracked = row.attributes?.pantryTracked === true;
@@ -598,8 +602,8 @@ const TOOLS: Tool[] = [
       if (!Object.keys(patch).length) return { status: "no_change", item: shape(row) };
 
       const leaving = patch.lifecycle_state && OUT_OF_USE.includes(patch.lifecycle_state) && row.lifecycle_state !== patch.lifecycle_state;
-      if (leaving && !(await tokenValid(ctx, userId, "update_item", a))) {
-        return needConfirmation(ctx, userId, "update_item", a, { item: row.name, lifecycle_state: { from: row.lifecycle_state, to: patch.lifecycle_state }, why_confirmation: "this takes the item out of use" });
+      if (leaving && !(await tokenValid(ctx, userId, "update_item", a, [row.lifecycle_state, row.updated_at]))) {
+        return needConfirmation(ctx, userId, "update_item", a, [row.lifecycle_state, row.updated_at], { item: row.name, lifecycle_state: { from: row.lifecycle_state, to: patch.lifecycle_state }, why_confirmation: "this takes the item out of use" });
       }
       const r = await guardedPatch(ctx, row, patch);
       return { status: "updated", changed: Object.keys(patch), item: shape(r) };
@@ -669,7 +673,7 @@ const TOOLS: Tool[] = [
       if (!cur.body[0]) throw new ToolError("No shopping-list entry with that id.");
       const name = cur.body[0].name;
       if (a.action === "remove") {
-        if (!(await tokenValid(ctx, userId, "shopping_remove", a))) return needConfirmation(ctx, userId, "shopping_remove", a, { delete_from_shopping_list: name });
+        if (!(await tokenValid(ctx, userId, "shopping_remove", a, name))) return needConfirmation(ctx, userId, "shopping_remove", a, name, { delete_from_shopping_list: name });
         const r = await pg(ctx, "DELETE", `pantry_shopping_items?id=eq.${id}`);
         if (r.status >= 300) fail(r, "Removing the entry");
         return { status: "removed", name };

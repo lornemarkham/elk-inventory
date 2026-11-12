@@ -2,6 +2,8 @@ import type { InventoryItem, InventoryDomain } from "../types/inventory";
 import { ZONES } from "../data/zones";
 import { COLLECTIONS } from "../data/collections";
 import { CONTAINERS } from "../data/containers";
+import { QuantityStepper } from "./QuantityControls";
+import { supportsQuantityControls } from "../lib/quantityControls";
 import { C, CLASS_COLORS, CLASS_LABELS, STATE_COLORS, ZONE_COLORS } from "../styles";
 
 const DOMAIN_COLORS: Partial<Record<InventoryDomain, string>> = {
@@ -109,6 +111,9 @@ export default function InventoryCard({ item, onClick }: Props) {
       <div style={{ fontSize: "17px", fontWeight: 700, color: C.text, lineHeight: 1.2 }}>
         {item.name}
       </div>
+
+      {/* One-tap − / + for things that get used up (food, supplies) */}
+      {supportsQuantityControls(item) && <QuantityStepper item={item} />}
 
       {/* Food/Preserving metadata block — replaces class/state/zone for these domains */}
       {(isFood || isPreserving) && (

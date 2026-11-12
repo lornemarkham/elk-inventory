@@ -3,6 +3,8 @@ import type { InventoryItem, InventoryDomain } from "../types/inventory";
 import { ZONES } from "../data/zones";
 import { COLLECTIONS } from "../data/collections";
 import { CONTAINERS } from "../data/containers";
+import { QuantityStepper } from "./QuantityControls";
+import { supportsQuantityControls } from "../lib/quantityControls";
 import { C, CLASS_COLORS, CLASS_LABELS, STATE_COLORS, ZONE_COLORS } from "../styles";
 
 interface Props {
@@ -65,7 +67,7 @@ export default function ItemDetailPanel({ item, onClose, onEdit, onDelete }: Pro
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "24px", fontWeight: 800, color: C.text, lineHeight: 1.2 }}>
               {item.name}
-              {item.quantity > 1 && (
+              {!supportsQuantityControls(item) && item.quantity > 1 && (
                 <span style={{ marginLeft: "10px", fontSize: "18px", color: C.textMid, fontWeight: 400 }}>
                   ×{item.quantity}
                 </span>
@@ -80,6 +82,9 @@ export default function ItemDetailPanel({ item, onClose, onEdit, onDelete }: Pro
                 </span>
               )}
             </div>
+            {supportsQuantityControls(item) && (
+              <div style={{ marginTop: "14px" }}><QuantityStepper item={item} size={56} /></div>
+            )}
           </div>
 
           {/* Action buttons */}

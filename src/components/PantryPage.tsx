@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { InventoryItem } from "../types/inventory";
 import { C } from "../styles";
 import * as pantryDb from "../lib/pantryDb";
+import { QuantityStepper, useQuantity } from "./QuantityControls";
 import type { PantryLoad } from "../lib/pantryDb";
 import {
   countLabel, daysUntil, findProductByName, formatDay, isPantryItem, localToday, summarize, unitOf,
@@ -16,7 +17,7 @@ import {
 interface Props {
   items: InventoryItem[];
   /** Re-read inventory_items after the database changed a count. */
-  onItemsChanged: () => Promise<void>;
+  onItemsChanged: () => Promise<unknown>;
 }
 
 type Toast = { text: string; undoBatch?: string; error?: boolean } | null;
@@ -51,7 +52,9 @@ export default function PantryPage({ items, onItemsChanged }: Props) {
   async function reload() {
     setLoad(await pantryDb.loadPantry());
   }
-  useEffect(() => { reload(); }, []);
+  const quantity = useQuantity();
+  // A − / + (here or on another screen) changed a count: re-read batches and history.
+  useEffect(() => { reload(); }, [quantity.version]);
 
   // After any write: refresh lots/history here and item counts app-wide.
   async function afterWrite() {
@@ -195,11 +198,9 @@ function ProductCard({ s, load, onToast, afterWrite }: {
 
   return (
     <Card accent={s.isLow ? C.amber : undefined}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ fontSize: "18px", fontWeight: 800 }}>{s.item.name}</div>
-        <div style={{ fontSize: "20px", fontWeight: 800, whiteSpace: "nowrap", color: s.onHand === 0 ? C.textDim : C.text }}>
-          {countLabel(s.onHand, s.unit)}
-        </div>
+        <QuantityStepper item={s.item} />
       </div>
 
       <div style={{ color: C.textMid, fontSize: "15px", marginTop: "6px", lineHeight: 1.5 }}>

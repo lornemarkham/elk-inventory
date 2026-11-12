@@ -24,6 +24,7 @@ import PantryPage from "./components/PantryPage";
 import OAuthConsent from "./components/OAuthConsent";
 import FamilyPage from "./components/FamilyPage";
 import ConnectWrench from "./components/ConnectWrench";
+import { QuantityProvider, QuantityToast } from "./components/QuantityControls";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 //
@@ -167,9 +168,10 @@ export default function App() {
   }
 
   // Pantry changed counts in the database — re-read them (no seeding here).
-  async function refreshItems() {
+  async function refreshItems(): Promise<InventoryItem[] | null> {
     const fetched = await db.fetchItems();
-    if (fetched && fetched.length > 0) setItems(fetched);
+    if (fetched && fetched.length > 0) { setItems(fetched); return fetched; }
+    return null;
   }
 
   function handleDelete(id: string) {
@@ -285,6 +287,7 @@ export default function App() {
   ).length;
 
   return (
+    <QuantityProvider refresh={refreshItems}>
     <div style={{
       minHeight: "100vh",
       background: C.bg,
@@ -495,7 +498,10 @@ export default function App() {
         onSelectItem={handleCommandBarSelectItem}
         onFilterSelect={handleCommandBarFilter}
       />
+
+      <QuantityToast />
     </div>
+    </QuantityProvider>
   );
 }
 

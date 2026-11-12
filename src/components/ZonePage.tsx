@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import type { InventoryItem, Zone } from "../types/inventory";
 import { ZONES } from "../data/zones";
+import { QuantityStepper } from "./QuantityControls";
+import { supportsQuantityControls } from "../lib/quantityControls";
 import { C, CLASS_COLORS, CLASS_LABELS, STATE_COLORS, ZONE_COLORS, PRIORITY_COLORS, PRIORITY_LABELS } from "../styles";
 
 interface Props {
@@ -328,7 +330,7 @@ function InlineItemRow({
       <div style={{ flex: 1, minWidth: "140px" }}>
         <div style={{ fontSize: "16px", fontWeight: 700, color: C.text }}>
           {item.name}
-          {item.quantity > 1 && <span style={{ marginLeft: "6px", fontSize: "14px", color: C.textMid, fontWeight: 400 }}>×{item.quantity}</span>}
+          {!supportsQuantityControls(item) && item.quantity > 1 && <span style={{ marginLeft: "6px", fontSize: "14px", color: C.textMid, fontWeight: 400 }}>×{item.quantity}</span>}
         </div>
         {item.project && (
           <div style={{ fontSize: "13px", color: C.purple, marginTop: "2px" }}>◆ {item.project}</div>
@@ -336,6 +338,7 @@ function InlineItemRow({
       </div>
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+        {supportsQuantityControls(item) && <QuantityStepper item={item} size={44} showUnit={false} />}
         <Chip label={item.lifecycleState} color={stateColor} />
         {fromZone && curZone && (
           <span style={{ fontSize: "13px", color: C.textMid }}>from {curZone.name}</span>

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { describeAuthError, linkErrorFromUrl } from "../lib/authErrors";
 import { supabase } from "../lib/supabase";
 import { C } from "../styles";
 
@@ -7,10 +8,25 @@ export default function LoginPage() {
   const [sent,    setSent]    = useState(false);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
+  const [cooldown, setCooldown] = useState(0);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim()) return;
+  // An expired or already-used emailed link lands here with the reason in the URL.
+  useEffect(() => {
+    const msg = linkErrorFromUrl(window.location.hash, window.location.search);
+    if (msg) {
+      setError(msg);
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  async function sendLink() {
+    if (!email.trim() || loading || cooldown > 0) return;
     setLoading(true);
     setError("");
 
@@ -19,17 +35,26 @@ export default function LoginPage() {
     if (window.location.pathname === "/oauth/consent" || window.location.pathname === "/connect-wrench") {
       localStorage.setItem("elk.afterLogin", JSON.stringify({ to: window.location.pathname + window.location.search, at: Date.now() }));
     }
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSent(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) {
+        setError(describeAuthError(error));
+      } else {
+        setSent(true);
+        setCooldown(60);
+      }
+    } catch (e) {
+      setError(describeAuthError(e));
     }
     setLoading(false);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void sendLink();
   }
 
   return (
@@ -87,10 +112,31 @@ export default function LoginPage() {
             <div style={{ marginTop: "16px", fontSize: "13px", color: C.textMid, lineHeight: 1.6 }}>
               Click the link in the email to sign in.<br />No password needed.
             </div>
+            <div style={{ marginTop: "12px", fontSize: "12px", color: C.textDim, lineHeight: 1.6 }}>
+              Not there? Check spam. On a phone, open the link in the same phone's browser
+              (Safari or Chrome) and use only the newest email.
+            </div>
+            {error && (
+              <div style={{ marginTop: "14px", background: "#3d1515", border: "1px solid #7a2020", borderRadius: "6px", color: "#f87171", fontSize: "13px", padding: "10px 14px", lineHeight: 1.5 }}>
+                {error}
+              </div>
+            )}
             <button
-              onClick={() => { setSent(false); setEmail(""); }}
+              onClick={() => void sendLink()}
+              disabled={loading || cooldown > 0}
               style={{
-                marginTop: "20px",
+                marginTop: "16px", background: loading || cooldown > 0 ? C.border : C.amber, border: "none",
+                borderRadius: "6px", color: loading || cooldown > 0 ? C.textMid : "#1c1a17", fontSize: "13px",
+                fontWeight: 700, padding: "9px 16px", cursor: loading || cooldown > 0 ? "not-allowed" : "pointer", fontFamily: "inherit",
+              }}
+            >
+              {loading ? "Sending…" : cooldown > 0 ? `Resend link in ${cooldown}s` : "Resend link"}
+            </button>
+            <br />
+            <button
+              onClick={() => { setSent(false); setEmail(""); setError(""); setCooldown(0); }}
+              style={{
+                marginTop: "12px",
                 background: "transparent",
                 border: `1px solid ${C.border}`,
                 borderRadius: "6px",
@@ -184,7 +230,7 @@ export default function LoginPage() {
           fontSize: "12px",
           color: C.textDim,
         }}>
-          Private inventory — by invite only
+          Private inventory — family by invitation only
         </div>
       </div>
     </div>

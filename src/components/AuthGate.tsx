@@ -36,9 +36,18 @@ export default function AuthGate({ children }: Props) {
     if (!userId) { setAccess(null); return; }
     let cancelled = false;
     setAccess(null);
-    supabase.rpc("elk_is_family_member").then(({ data, error }) => {
-      if (!cancelled) setAccess(classifyAccess(data, error));
-    });
+    (async () => {
+      const { data, error } = await supabase.rpc("elk_is_family_member");
+      let result = classifyAccess(data, error);
+      // Signed in but not on the list: accept a pending invitation for this
+      // account's own email, if the owner made one (supabase-family-invites.sql).
+      // If that migration hasn't run the call just fails and nothing changes.
+      if (result.status === "not-member") {
+        const claim = await supabase.rpc("elk_claim_family_invite");
+        if (!claim.error && claim.data === "joined") result = { status: "member" };
+      }
+      if (!cancelled) setAccess(result);
+    })();
     return () => { cancelled = true; };
   }, [userId, attempt]);
 
@@ -83,9 +92,10 @@ export default function AuthGate({ children }: Props) {
             <>
               <h2 style={{ margin: "0 0 10px", fontSize: "20px" }}>You're not on the family list yet</h2>
               <p style={{ margin: "0 0 20px", color: C.textMid, lineHeight: 1.6 }}>
-                You're signed in as <strong>{user.email}</strong>. Ask whoever runs ELK to add this
-                email, then reload this page.
+                You're signed in as <strong>{user.email}</strong>. Ask whoever runs ELK to invite this
+                email, then press the button below.
               </p>
+              <button onClick={() => setAttempt(n => n + 1)} style={gateBtn}>Check again</button>{" "}
             </>
           ) : (
             <>

@@ -92,6 +92,40 @@ To remove someone or see who's on the list, use the queries at the bottom of
 
 Read feedback in Table Editor → `inventory_feedback`.
 
+## Inviting family from the app (supabase-family-invites.sql)
+
+Run `supabase-family-invites.sql` after `supabase-family-access.sql` (safe to
+re-run). It adds an owner flag (the earliest member becomes owner if none is
+set), a private invitations table and five functions. Then:
+
+1. Owner opens **Family** in ELK, types the person's email and name, taps *Send invitation*.
+2. The person opens https://elk-inventory.vercel.app on their phone, types that
+   email, and taps the link in the email. ELK matches the invitation to their
+   own account and adds them. No SQL step.
+3. Invitations last 30 days, can be withdrawn, and grant nothing on their own.
+   Accounts that have a password are never auto-added (see the warning above).
+
+## "Database error saving new user" (brand-new emails can't sign in)
+
+Checked 2026-11-12: `POST /auth/v1/otp` for a never-seen email returns
+`500 unexpected_failure: Database error saving new user`. Supabase creates the
+account first, and the shared `on_auth_user_created` trigger
+(`public.handle_new_user()`) fails, so no email is sent. Existing accounts are
+unaffected. This is in the database, not the app, and ELK can't fix it from
+code. In the SQL Editor:
+
+```sql
+SELECT pg_get_functiondef('public.handle_new_user'::regproc);
+SELECT column_name, is_nullable, column_default FROM information_schema.columns
+ WHERE table_schema='public' AND table_name='profiles' ORDER BY ordinal_position;
+SELECT tgname, tgrelid::regclass FROM pg_trigger WHERE tgrelid='auth.users'::regclass AND NOT tgisinternal;
+```
+
+Typical causes: another app added a NOT NULL column to `profiles` with no
+default, or a second trigger on `auth.users` is failing. Fix that (check the
+other app first), then retry with a new email. Supabase → Logs → Postgres shows
+the exact error.
+
 ## Not changed here (owner decisions)
 
 - **`/api/extract`** (AI photo/text extraction on Capture) is family-only. The

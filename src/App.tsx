@@ -22,6 +22,7 @@ import CapturePage from "./components/CapturePage";
 import CapturedReviewQueue from "./components/CapturedReviewQueue";
 import PantryPage from "./components/PantryPage";
 import OAuthConsent from "./components/OAuthConsent";
+import FamilyPage from "./components/FamilyPage";
 import ConnectWrench from "./components/ConnectWrench";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
@@ -360,6 +361,7 @@ export default function App() {
                 { path: "/", label: "Dashboard", end: true },
                 { path: "/inventory", label: "Inventory", end: false },
                 { path: "/pantry", label: "Pantry", end: false },
+                { path: "/family", label: "Family", end: false },
                 { path: "/zones", label: "Zones", end: false },
                 { path: "/collections", label: "Kits & Collections", end: false },
               ].map((v) => (
@@ -426,6 +428,7 @@ export default function App() {
             <Route path="/collections" element={<CollectionsPage items={items} />} />
             <Route path="/oauth/consent" element={<OAuthConsent />} />
             <Route path="/connect-wrench" element={<ConnectWrench />} />
+            <Route path="/family" element={<FamilyPage />} />
             <Route path="/pantry" element={<PantryPage items={items} onItemsChanged={refreshItems} />} />
             <Route
               path="/capture"
